@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    android:layout_margin="2dp">
+    <ImageView
+        android:id="@+id/noti_image_view"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/image"/>
+    <TextView
+        android:id="@+id/noti_song_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Song Name"
+        android:textColor="@android:color/white"
+        android:layout_toRightOf="@id/noti_image_view"
+        android:textSize="16sp"
+        android:layout_margin="10dp"
+        android:padding="5dp"
+        android:textStyle="bold"/>
+    <ImageButton
+        android:id="@+id/noti_close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@drawable/ic_close_black_24dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true" />
+    <ImageButton
+        android:id="@+id/noti_song_pause"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/pause"
+        android:background="@android:color/black"
+        android:layout_below="@id/noti_song_name"
+        android:layout_centerHorizontal="true"
+        />
+    <ImageButton
+        android:id="@+id/noti_song_next"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/next"
+        android:background="@android:color/black"
+        android:layout_toRightOf="@id/noti_song_pause"
+        android:layout_below="@id/noti_song_name"
+        android:layout_marginLeft="25dp"
+        android:layout_centerHorizontal="true"
+        />
+</RelativeLayout>
