@@ -5,4 +5,5 @@
     <string name="skip_to_previous_song">Skip to Previous Song</string>
     <string name="play_or_pause_the_song">play or pause the song</string>
     <string name="skip_to_next_song">skip to next song</string>
+    <string name="_00">00</string>
 </resources>

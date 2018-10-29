@@ -8,51 +8,74 @@ import android.os.Parcelable;
 
 @Entity(tableName = "favouritesPlaylist")
 public class Songs implements Parcelable {
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
     @PrimaryKey(autoGenerate = true)
     private int id;
-    private long mSongID;
 
-    private String mSongTitle;
-    private String mSongartist;
-    private String mSongUri;
+    private long SongID;
+    private String SongTitle;
+    private String SongArtist;
+    private String SongUri;
 
+   public Songs(){
 
-    public Songs(int id,long sondId,String title, String artist, String uri){
-        mSongID = sondId;
-        mSongTitle = title;
-        mSongartist = artist;
-        mSongUri = uri;
+   }
+
+    public Songs(int id, long songId, String title, String artist, String uri) {
+        id = id;
+        SongID = songId;
+        SongTitle = title;
+        SongArtist = artist;
+        SongUri = uri;
     }
+
     @Ignore
-    public Songs(long id, String title, String artist, String uri){
+    public Songs(long songId, String title, String artist, String uri) {
 
-        mSongID = id;
-        mSongTitle = title;
-        mSongartist = artist;
-        mSongUri = uri;
+        SongID = songId;
+        SongTitle = title;
+        SongArtist = artist;
+        SongUri = uri;
     }
 
-    public String getmSongUri() {
-        return mSongUri;
+    public String getSongUri() {
+        return SongUri;
     }
 
-    public void setmSongUri(String mSongUri) {
-        this.mSongUri = mSongUri;
+    public void setSongUri(String mSongUri) {
+        this.SongUri = mSongUri;
     }
 
-    public long getSongID(){
-        return mSongID;
+    public void setSongID(long songID) {
+        SongID = songID;
     }
 
-    public String getSongTitle(){
-        return mSongTitle;
-    }
-    public String getmSongartist() {
-        return mSongartist;
+    public long getSongID() {
+        return SongID;
     }
 
-    public void setmSongartist(String mSongartist) {
-        this.mSongartist = mSongartist;
+    public void setSongTitle(String songTitle) {
+        SongTitle = songTitle;
+    }
+
+
+    public String getSongTitle() {
+        return SongTitle;
+    }
+
+    public String getSongArtist() {
+        return SongArtist;
+    }
+
+    public void setSongArtist(String mSongartist) {
+        this.SongArtist = mSongartist;
     }
 
     @Override
@@ -62,17 +85,17 @@ public class Songs implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeLong(this.mSongID);
-        dest.writeString(this.mSongTitle);
-        dest.writeString(this.mSongartist);
-        dest.writeString(this.mSongUri);
+        dest.writeLong(this.SongID);
+        dest.writeString(this.SongTitle);
+        dest.writeString(this.SongArtist);
+        dest.writeString(this.SongUri);
     }
 
     protected Songs(Parcel in) {
-        this.mSongID = in.readLong();
-        this.mSongTitle = in.readString();
-        this.mSongartist = in.readString();
-        this.mSongUri = in.readString();
+        this.SongID = in.readLong();
+        this.SongTitle = in.readString();
+        this.SongArtist = in.readString();
+        this.SongUri = in.readString();
     }
 
     public static final Creator<Songs> CREATOR = new Creator<Songs>() {

@@ -23,18 +23,15 @@ import com.example.ayush.musica.utility.Store;
 
 import butterknife.internal.Utils;
 
+import static com.example.ayush.musica.AppConstants.ACTION_NEXT;
+import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
+import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
 import static com.example.ayush.musica.AppConstants.ACTION_PLAY_WIDGET;
+import static com.example.ayush.musica.AppConstants.ACTION_PREVIOUS;
 import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
 
 
 public class MediaWidget extends AppWidgetProvider {
-
-    public static final String ACTION_PLAY = "com.example.ayush.musica.ACTION_PLAY";
-    public static final String ACTION_PAUSE = "com.example.ayush.musica.ACTION_PAUSE";
-    public static final String ACTION_PREVIOUS = "com.example.ayush.musica.ACTION_PREVIOUS";
-    public static final String ACTION_NEXT = "com.example.ayush.musica.ACTION_NEXT";
-
-
     private static MediaWidget sInstance;
     static final ComponentName THIS_APPWIDGET =
             new ComponentName("com.example.ayush.mp3",
@@ -51,27 +48,11 @@ public class MediaWidget extends AppWidgetProvider {
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager,
                                 int appWidgetId) {
 
-
-
-
-        /*Intent intent = new Intent(context, SongService.class);
-        intent.setAction(ACTION_PLAY);
-        PendingIntent pendingIntent = PendingIntent.getService(context, 0, intent, 0);
-        // PendingIntent pendingIntent = PendingIntent.getService(context,0,intent,0);
-        ContextCompat.startForegroundService(context, intent);
-        //context.startService(intent);
-
-        Log.i("WID", "started :(");
-        views.setOnClickPendingIntent(R.id.widget_play_btn, pendingIntent);
-        // Instruct the widget manager to update the widget */
-        //appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-        // There may be multiple widgets active, so update all of them
-        //  for (int appWidgetId : appWidgetIds) {
-        // updateAppWidget(context, appWidgetManager, appWidgetId);
+
         defaultAppWidget(context, appWidgetIds);
 
         Intent updateIntent = new Intent();
@@ -83,32 +64,12 @@ public class MediaWidget extends AppWidgetProvider {
 
     @Override
     public void onEnabled(Context context) {
-        // Enter relevant functionality for when the first widget is created
+
     }
 
     @Override
     public void onDisabled(Context context) {
-        // Enter relevant functionality for when the last widget is disabled
-    }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        if (intent.getAction() != null)
-            switch (intent.getAction()) {
-                case ACTION_PLAY:
-                    Log.i("WD", "play");
-                    break;
-                case ACTION_PAUSE:
-                    Log.i("WD", "pause");
-                    break;
-                case ACTION_NEXT:
-                    Log.i("WD", "next");
-                    break;
-                case ACTION_PREVIOUS:
-                    Log.i("WD", "previous");
-                    break;
-            }
-        super.onReceive(context, intent);
     }
 
     private void defaultAppWidget(Context context, int[] appWidgetId) {
@@ -121,8 +82,7 @@ public class MediaWidget extends AppWidgetProvider {
         Songs song = store.getMediaList().get(index);
 
         views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
-
-        linkButtons(context, views, false);
+        setButton(context, views, false);
         pushUpdate(context, appWidgetId, views);
     }
 
@@ -150,16 +110,16 @@ public class MediaWidget extends AppWidgetProvider {
         MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
         byte[] rawCover;
         Bitmap cover;
-        Uri uri = Uri.parse(song.getmSongUri());
+        Uri uri = Uri.parse(song.getSongUri());
         BitmapFactory.Options bfo = new BitmapFactory.Options();
         metadataRetriever.setDataSource(service.getApplicationContext(), uri);
         rawCover = metadataRetriever.getEmbeddedPicture();
-      /*  if (null != rawCover) {
-            bfo.inSampleSize = 4;
+        if (null != rawCover) {
+            bfo.inSampleSize = 2;
             cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
             views.setImageViewBitmap(R.id.widget_background_image,cover);
         }
-        */
+
 
 
         views.setViewVisibility(R.id.widget_song_name, View.VISIBLE);
@@ -172,7 +132,7 @@ public class MediaWidget extends AppWidgetProvider {
             views.setImageViewResource(R.id.widget_play_btn, R.drawable.play);
         }
 
-        linkButtons(service, views, playing);
+        setButton(service, views, playing);
         pushUpdate(service, appWidgetIds, views);
 
     }
@@ -187,7 +147,7 @@ public class MediaWidget extends AppWidgetProvider {
         }
     }
 
-    private void linkButtons(Context context, RemoteViews views, boolean p) {
+    private void setButton(Context context, RemoteViews views, boolean p) {
         Intent intent;
         PendingIntent pendingIntent;
 

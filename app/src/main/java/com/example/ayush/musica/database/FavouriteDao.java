@@ -21,7 +21,7 @@ public interface FavouriteDao {
     void InsertSong(Songs song);
 
     @Update(onConflict = OnConflictStrategy.REPLACE)
-    void updateFavourites();
+    void updateFavourites(Songs song);
 
     @Delete
     void deleteSong(Songs song);

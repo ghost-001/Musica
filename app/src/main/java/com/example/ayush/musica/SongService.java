@@ -174,7 +174,6 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
     @Override
     public boolean onUnbind(Intent intent) {
-        mediaSession.release();
         removeNotification();
         return super.onUnbind(intent);
     }
@@ -186,6 +185,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             stopMedia();
             mediaPlayer.release();
         }
+        mediaSession.release();
         removeAudioFocus();
         removeNotification();
         unregisterReceiver(playNewAudio);
@@ -218,7 +218,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
         }
         try {
-            mediaPlayer.setDataSource(this, Uri.parse(song.getmSongUri()));
+            mediaPlayer.setDataSource(this, Uri.parse(song.getSongUri()));
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -282,6 +282,9 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         }
     }
 
+    public void saveCurrentPosition(){
+        currentPosition = mediaPlayer.getCurrentPosition();
+    }
     public void resumeMedia() {
         if (mediaPlayer != null) {
             if (requestAudioFocus()) {
@@ -423,7 +426,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 R.drawable.image);
         mediaSession.setMetadata(new MediaMetadataCompat.Builder()
                 .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, albumArt)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.getmSongartist())
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.getSongArtist())
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.getSongTitle())
                 .build());
 
@@ -526,7 +529,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 .setLargeIcon(largeIcon)
                 .setSmallIcon(android.R.drawable.stat_sys_headset)
                 .setContentTitle(song.getSongTitle())
-                .setContentInfo(song.getmSongartist())
+                .setContentInfo(song.getSongArtist())
                 .addAction(notificationAction, ACTION_PAUSE, play_PauseAction)
                 .addAction(android.R.drawable.ic_notification_clear_all, ACTION_STOP, playbackAction(4));
         notificationManager.notify(1, noti.build());
@@ -598,14 +601,9 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
     private void notifyChange(String what) {
 
-        //Intent i = new Intent(what);
-        //sendBroadcast(i);
-
         Intent broadcastIntent = new Intent(what);
         sendBroadcast(broadcastIntent);
 
-
-        // Share this notification directly with our widgets
         mMediaWidgetProvider.notifyChange(this, what);
 
     }
