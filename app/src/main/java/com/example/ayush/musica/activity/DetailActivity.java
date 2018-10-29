@@ -96,6 +96,7 @@ public class DetailActivity extends AppCompatActivity {
             SongService.LocalBinder binder = (SongService.LocalBinder) iBinder;
             player = binder.getService();
                 serviceBound = true;
+            play = new Intent(DetailActivity.this, SongService.class);
                 playButtonClick();
 
         }
@@ -137,7 +138,7 @@ public class DetailActivity extends AppCompatActivity {
         intentFilter.addAction(ACTION_PAUSE);
         registerReceiver(notifyChangeActiivty, intentFilter);
 
-        play = new Intent(DetailActivity.this, SongService.class);
+
 
         songsArrayList = new ArrayList<>();
 
@@ -240,7 +241,7 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void playMedia() {
-        if (serviceBound) {
+        if (serviceBound && !player.isPlaying()) {
 
             // player.setContext(this);
            /* player.setFileUri(Uri.parse(song.getmSongUri()));
@@ -248,10 +249,9 @@ public class DetailActivity extends AppCompatActivity {
             player.setSongIndex(songIndex);
             player.setSongs(songsArrayList);
             player.setSong(song);*/
-           // createAudioProgressbarUpdater();
+         //  play.setAction(ACTION_PLAY);
+            createAudioProgressbarUpdater();
             player.setProgressHandler(progressUpdateHandler);
-//            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
-
             ContextCompat.startForegroundService(DetailActivity.this, play);
 
         } else {
@@ -266,12 +266,8 @@ public class DetailActivity extends AppCompatActivity {
             */
             createAudioProgressbarUpdater();
             player.setProgressHandler(progressUpdateHandler);
-            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
             sendBroadcast(broadcastIntent);
         }
-
-//        mSeekBar.setMax(player.getTotalAudioDuration() / 1000);
-
     }
 
     public void playPreviousSong() {

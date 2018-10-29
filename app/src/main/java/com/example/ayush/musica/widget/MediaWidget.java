@@ -75,8 +75,6 @@ public class MediaWidget extends AppWidgetProvider {
         defaultAppWidget(context, appWidgetIds);
 
         Intent updateIntent = new Intent();
-        //updateIntent.putExtra(MediaPlaybackService.CMDNAME,
-        //      MediaAppWidgetProvider.CMDAPPWIDGETUPDATE);
         updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds);
         updateIntent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
         context.sendBroadcast(updateIntent);

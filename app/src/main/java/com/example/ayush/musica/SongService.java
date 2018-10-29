@@ -68,7 +68,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
 
     private AudioManager audioManager;
-    private static MediaPlayer mediaPlayer;
+    private MediaPlayer mediaPlayer;
 
 
     private ArrayList<Songs> songs = new ArrayList<>();
@@ -198,6 +198,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
         mediaPlayer.setOnCompletionListener(this);
         mediaPlayer.setOnPreparedListener(this);
+
         mediaPlayer.reset();
 
 
@@ -231,8 +232,8 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                     Message updateProgressMsg = new Message();
                     updateProgressMsg.what = UPDATE_PROGRESS_KEY;
                     if (progressHandler != null) {
-                        progressHandler.sendMessage(updateProgressMsg);
-                        try {
+                        try {    progressHandler.sendMessage(updateProgressMsg);
+
                             if (changePos) {
                                 mediaPlayer.seekTo(currentPosition);
                                 changePos = false;
@@ -245,7 +246,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 }
             }
         };
-        //updateProgressThread.start();
+        updateProgressThread.start();
 
     }
 
