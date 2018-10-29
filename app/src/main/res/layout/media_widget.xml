@@ -1,0 +1,55 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/widget_layout_root"
+    android:background="@color/colorPrimaryDark"
+    android:padding="@dimen/widget_margin">
+    <ImageView
+        android:id="@+id/widget_background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"/>
+
+    <TextView
+        android:id="@+id/widget_song_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:contentDescription="@string/appwidget_text"
+        android:text="@string/appwidget_text"
+        android:textColor="#ffffff"
+        android:textSize="18sp"
+        android:textStyle="bold|italic" />
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
+        android:layout_below="@id/widget_song_name">
+<ImageButton
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:src="@drawable/previous"
+    android:id="@+id/widget_previous_btn"
+    android:layout_marginEnd="20dp"
+    android:contentDescription="@string/skip_to_previous_song"/>
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/play"
+        android:layout_centerHorizontal="true"
+        android:layout_centerInParent="true"
+        android:layout_toEndOf="@id/widget_previous_btn"
+        android:id="@+id/widget_play_btn"
+        android:contentDescription="@string/play_or_pause_the_song"/>
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/next"
+        android:layout_marginStart="20dp"
+        android:layout_toEndOf="@id/widget_play_btn"
+        android:id="@+id/widget_next_btn"
+        android:contentDescription="@string/skip_to_next_song"/>
+    </RelativeLayout>
+</RelativeLayout>

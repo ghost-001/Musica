@@ -12,25 +12,31 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="com.example.ayush.musica.activity.MainActivity">
+        <activity android:name=".activity.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.example.ayush.musica.activity.DetailActivity" >
+        <activity
+            android:name=".activity.DetailActivity"
+            android:parentActivityName=".activity.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content"/>
-                <data android:scheme="file"/>
-                <data android:mimeType="audio/*"/>
-                <data android:mimeType="application/ogg"/>
-                <data android:mimeType="application/x-ogg"/>
-                <data android:mimeType="application/itunes"/>
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/ogg" />
+                <data android:mimeType="application/x-ogg" />
+                <data android:mimeType="application/itunes" />
             </intent-filter>
             <intent-filter>
                 <action android:name="com.android.music.PLAYBACK_VIEWER" />
+
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
@@ -38,13 +44,22 @@
         <service
             android:name=".SongService"
             android:enabled="true"
-            android:exported="true"/>
-        <receiver android:name=".NotificationBroadCastMusica" android:exported="true">
-         <intent-filter>
-             <action android:name="com.example.ayush.musica.action_pause"/>
-             <action android:name="com.example.ayush.musica.action_next"/>
-             <action android:name="com.example.ayush.musica.action_stop"/>
-         </intent-filter>
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.ayush.musica.ACTION_PLAY" />
+                <action android:name="com.example.ayush.musica.ACTION_PAUSE" />
+                <action android:name="com.example.ayush.musica.ACTION_PREVIOUS" />
+                <action android:name="com.example.ayush.musica.ACTION_NEXT" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name=".widget.MediaWidget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/media_widget_info" />
         </receiver>
 
     </application>

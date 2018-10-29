@@ -1,6 +1,5 @@
 package com.example.ayush.musica;
 
-import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -26,23 +25,20 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
-import android.provider.MediaStore;
 import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.media.app.NotificationCompat.MediaStyle;
 import android.util.Log;
-import android.widget.Toast;
-
 
 import com.example.ayush.musica.activity.DetailActivity;
 import com.example.ayush.musica.utility.Songs;
+import com.example.ayush.musica.utility.Store;
+import com.example.ayush.musica.widget.MediaWidget;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 
 import static com.example.ayush.musica.AppConstants.ACTION_NEXT;
@@ -50,6 +46,15 @@ import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
 import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
 import static com.example.ayush.musica.AppConstants.ACTION_PREVIOUS;
 import static com.example.ayush.musica.AppConstants.ACTION_STOP;
+import static com.example.ayush.musica.AppConstants.APP_NAME;
+import static com.example.ayush.musica.AppConstants.AUDIO_FOCUS_NOT_AVAILABLE;
+import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
+import static com.example.ayush.musica.AppConstants.MEDIA_SESSION_TAG;
+import static com.example.ayush.musica.AppConstants.NOTIFICATION_CHANNEL_NAME;
+import static com.example.ayush.musica.AppConstants.NOTIFICATION_DESCRIPTION;
+import static com.example.ayush.musica.AppConstants.PROGRESS_HANDLER_NULL;
+import static com.example.ayush.musica.AppConstants.SONG_RETRIEVE_ERROR;
+import static com.example.ayush.musica.AppConstants.SONG_SERVICE_TAG;
 
 public class SongService extends Service implements MediaPlayer.OnCompletionListener,
         MediaPlayer.OnPreparedListener, MediaPlayer.OnSeekCompleteListener, AudioManager.OnAudioFocusChangeListener {
@@ -64,36 +69,37 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
     private AudioManager audioManager;
     private static MediaPlayer mediaPlayer;
-    private MediaStore.Audio activeAudio;
+
 
     private ArrayList<Songs> songs = new ArrayList<>();
     private int songIndex = -1;
     private Songs song;
-    private boolean checkAudioFocus = false;
+    private boolean userPause = false;
     private boolean changePos = false;
     private int currentPosition = 0;
-    private Uri fileUri = null;
-    private Context context = null;
-    private String str;
+    private Store store;
 
     private MediaSessionManager mediaSessionManager;
     private MediaSessionCompat mediaSession;
     private MediaControllerCompat.TransportControls transportControls;
     private Handler progressHandler;
 
+    private MediaWidget mMediaWidgetProvider = MediaWidget.getInstance();
+
     private BroadcastReceiver playNewAudio = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            //songIndex = intent.getIntExtra("songIndex", 0);
-            //song = intent.getParcelableExtra("song");
-            //songs = intent.getParcelableArrayListExtra("songList");
 
+            songIndex = store.getSongIndex();
+            if (songIndex < 0)
+                songIndex = 0;
+            song = songs.get(songIndex);
             stopMedia();
-            if(mediaPlayer != null)
-            mediaPlayer.reset();
+            if (mediaPlayer != null)
+                mediaPlayer.reset();
             initPlayer();
             updateMetaData();
-           buildNotification(PlaybackStatus.PLAYING);
+            buildNotification(PlaybackStatus.PLAYING);
 
         }
     };
@@ -105,47 +111,6 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     public void setProgressHandler(Handler progressHandler) {
         this.progressHandler = progressHandler;
     }
-
-    public Uri getFileUri() {
-        return fileUri;
-    }
-
-    public void setFileUri(Uri fileUri) {
-        this.fileUri = fileUri;
-    }
-
-    public Context getContext() {
-        return context;
-    }
-
-    public void setContext(Context context) {
-        this.context = context;
-    }
-
-    public Songs getSong() {
-        return song;
-    }
-
-    public void setSong(Songs song) {
-        this.song = song;
-    }
-
-    public ArrayList<Songs> getSongs() {
-        return songs;
-    }
-
-    public void setSongs(ArrayList<Songs> songs) {
-        this.songs = songs;
-    }
-
-    public Integer getSongIndex() {
-        return songIndex;
-    }
-
-    public void setSongIndex(Integer songIndex) {
-        this.songIndex = songIndex;
-    }
-
 
     @Nullable
     @Override
@@ -161,7 +126,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    "MyApp", NotificationManager.IMPORTANCE_DEFAULT);
+                    APP_NAME, NotificationManager.IMPORTANCE_LOW);
             ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle("")
@@ -173,30 +138,31 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         try {
-            str = intent.getStringExtra("faltu");
-            //song = intent.getParcelableExtra("song");
-            //songs = intent.getParcelableArrayListExtra("songList");
-            //songIndex = intent.getIntExtra("songIndex",0);
-            Log.i("Fuck", "GOT str");
-            Log.i("Fuck", "size songs list" + songs.size());
+
+            store = new Store(this);
+            songIndex = store.getSongIndex();
+            songs = store.getMediaList();
+            if (songIndex == -1) {
+                stopSelf();
+                Log.d(SONG_SERVICE_TAG, SONG_RETRIEVE_ERROR);
+            } else
+                song = songs.get(songIndex);
+
+            if (!requestAudioFocus()) {
+                stopSelf();
+                Log.d(SONG_SERVICE_TAG, AUDIO_FOCUS_NOT_AVAILABLE);
+            }
 
 
         } catch (NullPointerException e) {
             stopSelf();
         }
 
-        if(!checkAudioFocus)
-        if (!requestAudioFocus()) {
-            Log.i("Fuck", "focus not gained");
-            stopSelf();
-        }
-
-        if(mediaSessionManager == null){
+        if (mediaSessionManager == null) {
             try {
                 initMediaSession();
                 initPlayer();
-                Log.i("Fuck", "PLayer N session initialized");
-            }catch (RemoteException e){
+            } catch (RemoteException e) {
                 e.printStackTrace();
                 stopSelf();
             }
@@ -229,43 +195,34 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         if (mediaPlayer == null)
             mediaPlayer = new MediaPlayer();
 
-            mediaPlayer.setOnCompletionListener(this);
-            mediaPlayer.setOnPreparedListener(this);
-            mediaPlayer.reset();
+
+        mediaPlayer.setOnCompletionListener(this);
+        mediaPlayer.setOnPreparedListener(this);
+        mediaPlayer.reset();
 
 
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN
-                    && android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-                  /*  audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-                    int focusRequest = audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-                    if(focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
-                    {
-                        // Play
-                        mediaPlayer.setDataSource(getContext(), getFileUri());
-                        mediaPlayer.prepare();
-                    } */
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                && android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 
-            } else if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                AudioAttributes mAudioAttributes =
-                        new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_MEDIA)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                .build();
-                mediaPlayer.setAudioAttributes(
-                        mAudioAttributes);
-                Log.i("Fuck", "PLayer attributes set");
-            }
-            try {
 
-                    mediaPlayer.setDataSource(getContext(), getFileUri());
+        } else if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            AudioAttributes mAudioAttributes =
+                    new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build();
+            mediaPlayer.setAudioAttributes(
+                    mAudioAttributes);
 
-                    Log.i("Fuck", "PLayer data source  set");
+        }
+        try {
+            mediaPlayer.setDataSource(this, Uri.parse(song.getmSongUri()));
 
-            } catch (IOException e) {
-                e.printStackTrace();
-                stopSelf();
-            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            stopSelf();
+        }
         mediaPlayer.prepareAsync();
         Thread updateProgressThread = new Thread() {
             @Override
@@ -273,32 +230,34 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 while (true) {
                     Message updateProgressMsg = new Message();
                     updateProgressMsg.what = UPDATE_PROGRESS_KEY;
-                    progressHandler.sendMessage(updateProgressMsg);
-                    try {
-                        if (changePos) {
-                            mediaPlayer.seekTo(currentPosition);
-                            Log.i("PROGRESS", "this is currentPosition in thread" + currentPosition);
-                            changePos = false;
+                    if (progressHandler != null) {
+                        progressHandler.sendMessage(updateProgressMsg);
+                        try {
+                            if (changePos) {
+                                mediaPlayer.seekTo(currentPosition);
+                                changePos = false;
+                            }
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                        Log.i("Play", e.getMessage());
-                    }
+                    } else Log.d(SONG_SERVICE_TAG, PROGRESS_HANDLER_NULL);
                 }
             }
         };
-        updateProgressThread.start();
+        //updateProgressThread.start();
 
     }
 
-    public boolean isPlaying(){
+    public boolean isPlaying() {
         return mediaPlayer != null && mediaPlayer.isPlaying();
     }
+
     public void playMedia() {
-      if (mediaPlayer != null) {
+        if (mediaPlayer != null) {
             mediaPlayer.start();
-          buildNotification(PlaybackStatus.PLAYING);
+            buildNotification(PlaybackStatus.PLAYING);
+            notifyChange(ACTION_PLAY);
         }
     }
 
@@ -308,28 +267,37 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         if (mediaPlayer.isPlaying()) {
             mediaPlayer.stop();
         }
+        notifyChange(ACTION_PAUSE);
     }
 
     public void pauseMedia() {
-        if (mediaPlayer != null && mediaPlayer.isPlaying()){
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
-        currentPosition = mediaPlayer.getCurrentPosition();
+            userPause = false;
+            currentPosition = mediaPlayer.getCurrentPosition();
+            removeAudioFocus();
             buildNotification(PlaybackStatus.PAUSED);
+            notifyChange(ACTION_PAUSE);
         }
     }
 
     public void resumeMedia() {
         if (mediaPlayer != null) {
-            mediaPlayer.seekTo(currentPosition);
-            mediaPlayer.start();
-            buildNotification(PlaybackStatus.PLAYING);
+            if (requestAudioFocus()) {
+                mediaPlayer.seekTo(currentPosition);
+                mediaPlayer.start();
+                buildNotification(PlaybackStatus.PLAYING);
+                notifyChange(ACTION_PLAY);
+            }
         }
     }
-    public void changePosition(int i){
-        currentPosition = i*1000;
+
+    public void changePosition(int i) {
+        currentPosition = i * 1000;
         if (mediaPlayer != null)
-        changePos = true;
+            changePos = true;
     }
+
     public int getCurrentPosition() {
         int ret = 0;
         if (mediaPlayer != null) {
@@ -347,10 +315,11 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         return ret;
     }
 
-    public void resetMediaPlayer(){
+    public void resetMediaPlayer() {
         currentPosition = 0;
         mediaPlayer.reset();
     }
+
     public int getAudioProgress() {
         int ret = 0;
         int currentPosition = getCurrentPosition();
@@ -365,97 +334,63 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     public void onAudioFocusChange(int i) {
         switch (i) {
             case AudioManager.AUDIOFOCUS_GAIN:
-                if(mediaPlayer == null) initPlayer();
-              else if (!mediaPlayer.isPlaying())
+                if (mediaPlayer == null) initPlayer();
+                else if (!mediaPlayer.isPlaying() && !userPause)
                     mediaPlayer.start();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
                 if (mediaPlayer.isPlaying()) mediaPlayer.pause();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
-                if (mediaPlayer!=null)
-            {   mediaPlayer.pause();
-               // mediaPlayer.release();
-                //mediaPlayer = null;
-            }
+                if (mediaPlayer != null) {
+                    mediaPlayer.stop();
+                    mediaPlayer.release();
+                    mediaPlayer = null;
+                }
                 break;
         }
     }
-    @TargetApi(Build.VERSION_CODES.O)
+
     private boolean requestAudioFocus() {
-        AudioAttributes mAudioAttributes =
-                new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build();
-
-       audioManager = (AudioManager)
-                getContext().getSystemService(Context.AUDIO_SERVICE);
-        AudioFocusRequest mAudioFocusRequest =
-                new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                        .setAudioAttributes(mAudioAttributes)
-                        .setOnAudioFocusChangeListener(this)
-                        .build();
-        int focusRequest = audioManager.requestAudioFocus(mAudioFocusRequest);
-        if (focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            checkAudioFocus = true;
-            return true;
-        }
-        return false;
-
-
-        /*
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN
-                && android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            audioManager = (AudioManager)
+                    this.getSystemService(Context.AUDIO_SERVICE);
             int focusRequest = audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
             if (focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                // Play
                 return true;
             }
-            return false;
-        }else if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+        } else if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
             AudioAttributes mAudioAttributes =
                     new AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
                             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build();
-
-            audioManager = (AudioManager)
-                    context.getSystemService(Context.AUDIO_SERVICE);
             AudioFocusRequest mAudioFocusRequest =
                     new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                             .setAudioAttributes(mAudioAttributes)
                             .setOnAudioFocusChangeListener(this)
                             .build();
             int focusRequest = audioManager.requestAudioFocus(mAudioFocusRequest);
-            switch (focusRequest) {
-                case AudioManager.AUDIOFOCUS_REQUEST_FAILED:
-                    return false;
-                case AudioManager.AUDIOFOCUS_REQUEST_GRANTED:
-                    return true;
-
+            if (focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                return true;
             }
         }
-        return false;*/
+        return false;
     }
 
     private boolean removeAudioFocus() {
-        checkAudioFocus = false;
+
         return AudioManager.AUDIOFOCUS_REQUEST_GRANTED ==
                 audioManager.abandonAudioFocus(this);
     }
 
     private void initMediaSession() throws RemoteException {
-        if (mediaSessionManager != null) {
-            Log.i("Fuck", "esssion is null");
+        if (mediaSessionManager != null)
             return;
-        }
 
-        Log.i("Fuck", "initMediaSession");
         mediaSessionManager = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
-        mediaSession = new MediaSessionCompat(getApplicationContext(), "AudioPlayer");
-
+        mediaSession = new MediaSessionCompat(getApplicationContext(), MEDIA_SESSION_TAG);
         transportControls = mediaSession.getController().getTransportControls();
         mediaSession.setActive(true);
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
@@ -472,23 +407,22 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
         playMedia();
-        Log.i("Fuck", "PLayer on prepared methode");
+
     }
+
     @Override
     public void onSeekComplete(MediaPlayer m) {
         mediaPlayer.reset();
         currentPosition = 0;
-        Log.i("XXXX","onSeekCOmplete");
+
     }
+
     private void updateMetaData() {
-        Log.i("Fuck", "Updating metaData");
         Bitmap albumArt = BitmapFactory.decodeResource(getResources(),
-                R.drawable.image); //replace with medias albumArt
-        // Update the current metadata
+                R.drawable.image);
         mediaSession.setMetadata(new MediaMetadataCompat.Builder()
                 .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, albumArt)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.getmSongartist())
-                //  .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, )
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.getSongTitle())
                 .build());
 
@@ -501,7 +435,6 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             @Override
             public void onPlay() {
                 super.onPlay();
-                Log.i("Fuck", "session onPlay");
                 resumeMedia();
 
             }
@@ -509,25 +442,24 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             @Override
             public void onPause() {
                 super.onPause();
-                Log.i("Fuck", "session onPause");
                 pauseMedia();
+                userPause = true;
                 buildNotification(PlaybackStatus.PAUSED);
             }
 
             @Override
             public void onSkipToNext() {
                 super.onSkipToNext();
-               // skipToNext();
-                Log.i("Fuck", "session onSkipTONext");
-                songIndex++;
-                song = songs.get(songIndex);
-                Toast.makeText(getContext(),"SKIP TO NEXT ",Toast.LENGTH_SHORT).show();
+
+                if (songIndex < songs.size() - 1) {
+                    songIndex++;
+                    store.storeSongIndex(songIndex);
+                    song = songs.get(songIndex);
+                }
+
                 updateMetaData();
                 buildNotification(PlaybackStatus.PLAYING);
-               // getContext().startForeground(NOTIFICATION_ID, notification);
-                //mStarted = true;
                 stopMedia();
-                //reset mediaPlayer
                 mediaPlayer.reset();
                 initPlayer();
             }
@@ -535,15 +467,14 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             @Override
             public void onSkipToPrevious() {
                 super.onSkipToPrevious();
-                //skipToPrevious();
-                Log.i("Fuck", "session onSKipTOprevious");
-                //songIndex--;
-               // song = songs.get(songIndex);
-                Toast.makeText(getContext(),"SKIP TO NEXT ",Toast.LENGTH_SHORT).show();
+                if (songIndex > 0) {
+                    songIndex--;
+                    store.storeSongIndex(songIndex);
+                    song = songs.get(songIndex);
+                }
                 updateMetaData();
                 buildNotification(PlaybackStatus.PLAYING);
                 stopMedia();
-                //reset mediaPlayer
                 mediaPlayer.reset();
                 initPlayer();
             }
@@ -562,7 +493,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         });
     }
 
-    @TargetApi(Build.VERSION_CODES.O)
+
     private void buildNotification(PlaybackStatus playbackStatus) {
         int notificationAction = android.R.drawable.ic_media_pause;
 
@@ -577,49 +508,34 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
         Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.image);
 
+        Intent resultIntent = new Intent(this, DetailActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        stackBuilder.addNextIntentWithParentStack(resultIntent);
+        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,
+                                                            PendingIntent.FLAG_UPDATE_CURRENT);
+
         NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-
-        CharSequence name = "Media playback";
-        String description = "Media playback Controls";
-        int imp = NotificationManager.IMPORTANCE_LOW;
-        NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ID, name, imp);
-
-        notificationChannel.setDescription(description);
-        notificationChannel.setShowBadge(false);
-        notificationChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-        notificationManager.createNotificationChannel(notificationChannel);
-
-        NotificationCompat.Builder noti = new NotificationCompat.Builder(context, CHANNEL_ID)
-                //.setShowWhen(false)
-                // Set the Notification style
+        NotificationCompat.Builder noti = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentIntent(resultPendingIntent)
                 .setStyle(new android.support.v4.media.app.NotificationCompat.MediaStyle()
-                        // Attach our MediaSession token
                         .setMediaSession(mediaSession.getSessionToken())
-                        // Show our playback controls in the compact notification view.
-                        .setShowActionsInCompactView(0, 1, 2,4))
-                // Set the Notification color
+                        .setShowActionsInCompactView(0,1))
                 .setColor(getResources().getColor(R.color.colorPrimary))
                 .setAutoCancel(true)
-                // Set the large and small icons
                 .setLargeIcon(largeIcon)
                 .setSmallIcon(android.R.drawable.stat_sys_headset)
-                // Set Notification content information
-                .setContentText(song.getSongTitle())
                 .setContentTitle(song.getSongTitle())
                 .setContentInfo(song.getmSongartist())
-                // Add playback actions
-                .addAction(android.R.drawable.ic_media_previous, "previous", playbackAction(3))
-                .addAction(notificationAction, "pause", play_PauseAction)
-                .addAction(android.R.drawable.ic_media_next, "next", playbackAction(2))
-                .addAction(android.R.drawable.ic_notification_clear_all,"stop",playbackAction(4));
-         notificationManager.notify(1, noti.build());
-
-
+                .addAction(notificationAction, ACTION_PAUSE, play_PauseAction)
+                .addAction(android.R.drawable.ic_notification_clear_all, ACTION_STOP, playbackAction(4));
+        notificationManager.notify(1, noti.build());
     }
 
     private void removeNotification() {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(111);
+        if (notificationManager != null) {
+            notificationManager.cancel(Integer.valueOf(CHANNEL_ID));
+        }
     }
 
     private PendingIntent playbackAction(int actionNumber) {
@@ -639,7 +555,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 return PendingIntent.getService(this, actionNumber, playbackAction, 0);
             case 4:
                 playbackAction.setAction(ACTION_STOP);
-                return PendingIntent.getService(this,actionNumber,playbackAction,0);
+                return PendingIntent.getService(this, actionNumber, playbackAction, 0);
 
             default:
                 break;
@@ -666,25 +582,43 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 break;
             case ACTION_STOP:
                 stopMedia();
+                mediaPlayer.release();
+                mediaPlayer = null;
+                removeNotification();
+                transportControls.stop();
                 this.stopSelf();
                 android.os.Process.killProcess(android.os.Process.myPid());
                 System.exit(0);
-                removeNotification();
-                transportControls.stop();
+
                 break;
         }
     }
 
+
+    private void notifyChange(String what) {
+
+        //Intent i = new Intent(what);
+        //sendBroadcast(i);
+
+        Intent broadcastIntent = new Intent(what);
+        sendBroadcast(broadcastIntent);
+
+
+        // Share this notification directly with our widgets
+        mMediaWidgetProvider.notifyChange(this, what);
+
+    }
+
     private void registerPlayNewAudio() {
-        IntentFilter intentFilter = new IntentFilter(DetailActivity.BROADCAST_PLAY_NEW_SONG);
+        IntentFilter intentFilter = new IntentFilter(BROADCAST_PLAY_NEW_SONG);
         registerReceiver(playNewAudio, intentFilter);
     }
 
     public class LocalBinder extends Binder {
         public SongService getService() {
-            // Return this instance of LocalService so clients can call public methods
             return SongService.this;
         }
+
     }
 
 }

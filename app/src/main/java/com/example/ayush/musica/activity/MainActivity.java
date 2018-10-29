@@ -15,16 +15,22 @@ import android.support.v7.app.AppCompatActivity;
 //import android.support.v7.graphics.Palette;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+
 
 import com.example.ayush.musica.interfaces.MusicClickListner;
 import com.example.ayush.musica.adapters.MusicListAdapter;
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.utility.Songs;
+import com.example.ayush.musica.utility.Store;
 
 import java.util.ArrayList;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity  implements MusicClickListner {
     private Integer color = Color.parseColor("#000000");
@@ -36,7 +42,11 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
 
 
     private ArrayList<Songs> arrayList = new ArrayList<>();
+    @BindView(R.id.main_music_Recyler)
     RecyclerView mRecyclerView;
+    @BindView(R.id.main_toolbar)
+    Toolbar mToolbar;
+
     private MusicListAdapter mAdapter;
 
 
@@ -44,7 +54,10 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mRecyclerView = findViewById(R.id.main_music_Recyler);
+        ButterKnife.bind(this);
+        setSupportActionBar(mToolbar);
+        Toast.makeText(MainActivity.this,MainActivity.this.getPackageName(),Toast.LENGTH_SHORT).show();
+        getSupportActionBar().setTitle("Musica");
         permission();
 
 
@@ -146,11 +159,15 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     public void onMusicNameClick(Songs song,int position) {
         Toast.makeText(this,song.getSongTitle()+"CLICKED",Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this,DetailActivity.class);
-        intent.putExtra("songList",arrayList);
-        intent.putExtra("songIndex",position);
-        intent.putExtra("song",song);
+
+        storeDetails(position);
         Log.i("Array", "arrayList size in main" + arrayList.size());
         startActivity(intent);
+    }
+    public void storeDetails(int i){
+        Store store = new Store(getApplicationContext());
+        store.saveMediaList(arrayList);
+        store.storeSongIndex(i);
     }
 }
 

@@ -1,8 +1,10 @@
 package com.example.ayush.musica.activity;
 
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -16,6 +18,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -26,8 +29,8 @@ import android.widget.Toast;
 
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.SongService;
-import com.example.ayush.musica.service.AudioServiceBinder;
 import com.example.ayush.musica.utility.Songs;
+import com.example.ayush.musica.utility.Store;
 
 import java.util.ArrayList;
 
@@ -36,6 +39,8 @@ import butterknife.ButterKnife;
 
 import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
 import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
+import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
+import static com.example.ayush.musica.AppConstants.SONG_SERVICE_TAG;
 import static com.example.ayush.musica.utility.BlurBuilder.blurImage;
 
 //import android.support.v7.graphics.Palette;
@@ -56,12 +61,13 @@ public class DetailActivity extends AppCompatActivity {
     public int mMutedColor;
 
 
-    private AudioServiceBinder audioServiceBinder = null;
     private Handler progressUpdateHandler = null;
 
     private boolean checkIsPlaying = false;
     private boolean songPaused = false;
     private boolean serviceBound = false;
+
+    private Store store;
 
     @BindView(R.id.detail_play)
     ImageButton playButton;
@@ -75,10 +81,12 @@ public class DetailActivity extends AppCompatActivity {
     TextView currentTime;
     @BindView(R.id.detail_song_max_time)
     TextView maxTime;
-    public final int UPDATE_PROGRESS_POSITION = 2;
+    @BindView(R.id.detail_fav)
+    ImageView favouriteView;
+
+
     private SongService player;
-    public static final String BROADCAST_PLAY_NEW_SONG = "com.example.ayush.musica.action_play";
-    public static final String BROADCAST_PAUSE = "com.example.ayush.musica.action_pause";
+
 
     Intent play;
     private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -87,10 +95,9 @@ public class DetailActivity extends AppCompatActivity {
 
             SongService.LocalBinder binder = (SongService.LocalBinder) iBinder;
             player = binder.getService();
-            play = new Intent(DetailActivity.this, SongService.class);
-            serviceBound = true;
-            playButtonClick();
-            Toast.makeText(DetailActivity.this, "Service Bound" +player.getTotalAudioDuration()/1000, Toast.LENGTH_SHORT).show();
+                serviceBound = true;
+                playButtonClick();
+
         }
 
         @Override
@@ -99,35 +106,49 @@ public class DetailActivity extends AppCompatActivity {
         }
     };
 
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        outState.putBoolean("ServiceState", serviceBound);
-        super.onSaveInstanceState(outState);
-    }
+    private BroadcastReceiver notifyChangeActiivty = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction() != null)
+                switch (intent.getAction()) {
+                    case ACTION_PLAY:
+                        checkIsPlaying = true;
+                        songIndex = store.getSongIndex();
+                        if (songIndex != -1)
+                            song = songsArrayList.get(songIndex);
+                        setPosterImage();
+                        changePlayIcon();
+                        break;
+                    case ACTION_PAUSE:
+                        checkIsPlaying = false;
+                        changePlayIcon();
+                        break;
+                }
 
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        serviceBound = savedInstanceState.getBoolean("ServiceState");
-    }
-
-    @Override
-    protected void onDestroy() {
-        if (serviceBound) {
-            unbindService(serviceConnection);
         }
-        super.onDestroy();
-    }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ACTION_PLAY);
+        intentFilter.addAction(ACTION_PAUSE);
+        registerReceiver(notifyChangeActiivty, intentFilter);
+
+        play = new Intent(DetailActivity.this, SongService.class);
+
         songsArrayList = new ArrayList<>();
-        Intent intent = getIntent();
-        songsArrayList = intent.getParcelableArrayListExtra("songList");
-        songIndex = intent.getIntExtra("songIndex", 0);
+
+        store = new Store(this);
+        songsArrayList = store.getMediaList();
+        songIndex = store.getSongIndex();
+
+        if (songIndex == -1)
+            songIndex = 0;
         song = songsArrayList.get(songIndex);
+
 
         mTitle = findViewById(R.id.detail_music_name);
         mPosterCircle = findViewById(R.id.detail_circle_image);
@@ -136,7 +157,7 @@ public class DetailActivity extends AppCompatActivity {
         bindBackgroundAudioService();
         setPosterImage();
 
-        mTitle.setText(song.getSongTitle());
+
         mTitle.getBackground().setAlpha(110);
         ButterKnife.bind(this);
 
@@ -164,7 +185,7 @@ public class DetailActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
 
-              if(b)  player.changePosition(seekBar.getProgress());
+                if (b) player.changePosition(seekBar.getProgress());
 
             }
 
@@ -178,6 +199,211 @@ public class DetailActivity extends AppCompatActivity {
 
             }
         });
+
+        favouriteView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                saveFavourite();
+            }
+        });
+    }
+
+
+    public void saveFavourite() {
+        Toast.makeText(this, "CLicked", Toast.LENGTH_SHORT).show();
+    }
+
+
+    private void playButtonClick() {
+        if (!checkIsPlaying) {
+            checkIsPlaying = true;
+            play.setAction(ACTION_PLAY);
+            changePlayIcon();
+            if (songPaused) {
+                songPaused = false;
+                resumeMedia();
+            } else if (!songPaused)
+                playMedia();
+        } else {
+            player.pauseMedia();
+            play.setAction(ACTION_PAUSE);
+            checkIsPlaying = false;
+            songPaused = true;
+            changePlayIcon();
+            playMedia();
+        }
+
+    }
+
+    private void resumeMedia() {
+        player.resumeMedia();
+    }
+
+    private void playMedia() {
+        if (serviceBound) {
+
+            // player.setContext(this);
+           /* player.setFileUri(Uri.parse(song.getmSongUri()));
+            player.setContext(this);
+            player.setSongIndex(songIndex);
+            player.setSongs(songsArrayList);
+            player.setSong(song);*/
+           // createAudioProgressbarUpdater();
+            player.setProgressHandler(progressUpdateHandler);
+//            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
+
+            ContextCompat.startForegroundService(DetailActivity.this, play);
+
+        } else {
+            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
+
+            // player.setContext(this);
+         /*   player.setFileUri(Uri.parse(song.getmSongUri()));
+            player.setContext(this);
+            player.setSongIndex(songIndex);
+            player.setSongs(songsArrayList);
+            player.setSo ng(song);
+            */
+            createAudioProgressbarUpdater();
+            player.setProgressHandler(progressUpdateHandler);
+            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
+            sendBroadcast(broadcastIntent);
+        }
+
+//        mSeekBar.setMax(player.getTotalAudioDuration() / 1000);
+
+    }
+
+    public void playPreviousSong() {
+        if (songIndex > 0) {
+            songIndex--;
+            store.storeSongIndex(songIndex);
+
+            song = songsArrayList.get(songIndex);
+            mTitle.setText(song.getSongTitle());
+            setPosterImage();
+            checkIsPlaying = true;
+            changePlayIcon();
+            player.stopMedia();
+            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
+
+            // player.setFileUri(Uri.parse(song.getmSongUri()));
+            // player.setContext(this);
+            /*player.setSongIndex(songIndex);
+            player.setSongs(songsArrayList);
+            player.setSong(song);*/
+
+            sendBroadcast(broadcastIntent);
+
+        }
+
+    }
+
+    public void playNextSong() {
+        if (songIndex < songsArrayList.size() - 1) {
+
+            songIndex++;
+            store.storeSongIndex(songIndex);
+
+
+            song = songsArrayList.get(songIndex);
+            mTitle.setText(song.getSongTitle());
+            setPosterImage();
+            checkIsPlaying = true;
+            changePlayIcon();
+            player.stopMedia();
+            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
+
+            //  player.setFileUri(Uri.parse(song.getmSongUri()));
+            //player.setContext(this);
+            /*player.setSongIndex(songIndex);
+            player.setSongs(songsArrayList);
+            player.setSong(song);
+            sendBroadcast(broadcastIntent);*/
+            sendBroadcast(broadcastIntent);
+            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
+        }
+
+    }
+
+
+    public void changePlayIcon() {
+        if (checkIsPlaying) {
+            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                playButton.setImageDrawable(getDrawable(R.drawable.pause));
+            else
+                playButton.setImageDrawable(getResources().getDrawable(R.drawable.pause));
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                playButton.setImageDrawable(getDrawable(R.drawable.play));
+            else
+                playButton.setImageDrawable(getResources().getDrawable(R.drawable.play));
+        }
+
+    }
+
+    private void bindBackgroundAudioService() {
+        Intent intent = new Intent(DetailActivity.this, SongService.class);
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+
+
+    }
+
+    private void createAudioProgressbarUpdater() {
+
+        if (progressUpdateHandler == null) {
+            progressUpdateHandler = new Handler() {
+                @Override
+                public void handleMessage(Message msg) {
+                    if (msg.what == player.UPDATE_PROGRESS_KEY) {
+                        if (player != null) {
+                            try {
+                                int currentProgress = player.getAudioProgress();
+                                int currentDuration = player.getCurrentPosition();
+                                int totalDuration = player.getTotalAudioDuration();
+                                mSeekBar.setMax(totalDuration / 1000);
+                                currentTime.setText(String.valueOf(currentProgress));
+                                mSeekBar.setProgress(currentDuration / 1000);
+                                String x = setMaxTime(currentDuration);
+                                currentTime.setText(x);
+                                maxTime.setText(setMaxTime(totalDuration));
+                                if (totalDuration == currentDuration) {
+                                    player.stopSelf();
+                                    player.resetMediaPlayer();
+                                }
+                            }catch (Exception e){
+                                e.printStackTrace();
+                                Log.d(SONG_SERVICE_TAG,"ERROR IN DETAIL ACTIVITY HANDLER");
+                            }
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    public void setPosterImage() {
+
+        MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+        byte[] rawCover;
+        Bitmap cover;
+        mTitle.setText(song.getSongTitle());
+        Uri uri = Uri.parse(song.getmSongUri());
+        BitmapFactory.Options bfo = new BitmapFactory.Options();
+        metadataRetriever.setDataSource(getApplicationContext(), uri);
+        rawCover = metadataRetriever.getEmbeddedPicture();
+        if (null != rawCover) {
+            cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
+            Bitmap songImage = BitmapFactory
+                    .decodeByteArray(rawCover, 0, rawCover.length);
+            mPosterCircle.setImageBitmap(songImage);
+            final BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = 8;
+            background = blurImage(this, cover);
+            BitmapDrawable ob = new BitmapDrawable(getResources(), background);
+            final View view = this.getWindow().getDecorView();
+            view.setBackground(ob);
+        }
 
     }
 
@@ -202,196 +428,27 @@ public class DetailActivity extends AppCompatActivity {
 
         return finalTimerString;
     }
-    public String createTimeLable(int time) {
-        String timeLable = "";
-        int min = time / 1000 / 60;
-        int sec = time / 1000 % 60;
-        timeLable = min + ":";
-        if (sec < 10)
-            timeLable += "0";
-        timeLable += sec;
-        return timeLable;
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean("ServiceState", serviceBound);
+        super.onSaveInstanceState(outState);
     }
 
-    private void bindBackgroundAudioService() {
-        Intent intent = new Intent(DetailActivity.this, SongService.class);
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
-
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        serviceBound = savedInstanceState.getBoolean("ServiceState");
     }
-    private void createAudioProgressbarUpdater() {
 
-        if (progressUpdateHandler == null) {
-            final int total;
-            if(player!=null) {
-                total = player.getTotalAudioDuration() / 1000;
 
-            }
-            progressUpdateHandler = new Handler() {
-                @Override
-                public void handleMessage(Message msg) {
-                    if (msg.what == player.UPDATE_PROGRESS_KEY) {
-                        if (player != null) {
-                            int currentProgress = player.getAudioProgress();
-                            mSeekBar.setMax((int)player.getTotalAudioDuration()/1000);
-                            currentTime.setText(String.valueOf(currentProgress));
-                            mSeekBar.setProgress(player.getCurrentPosition() / 1000);
-                            String x = createTimeLable(player.getCurrentPosition());
-                            currentTime.setText(x);
-                            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
-                                if(player.getTotalAudioDuration()/1000 == player.getCurrentPosition()/1000) {
-                                    player.stopSelf();
-                                    player.resetMediaPlayer();
-                                }
-                        }
-                    }
-                }
-            };
+    @Override
+    protected void onDestroy() {
+        if (serviceBound) {
+            unbindService(serviceConnection);
         }
-    }
-
-    private void playButtonClick() {
-        if (!checkIsPlaying) {
-            checkIsPlaying = true;
-            play.setAction(ACTION_PLAY);
-            changePlayIcon();
-            if (songPaused) {
-                songPaused = false;
-                resumeMedia();
-            } else if (!songPaused)
-                playMedia();
-        } else {
-            player.pauseMedia();
-            play.setAction(ACTION_PAUSE);
-            checkIsPlaying = false;
-            songPaused = true;
-            changePlayIcon();
-            playMedia();
-        }
-
-    }
-
-    private void resumeMedia(){
-        player.resumeMedia();
-    }
-
-    private void playMedia(){
-        if (serviceBound && !player.isPlaying()) {
-
-            player.setContext(this);
-            player.setFileUri(Uri.parse(song.getmSongUri()));
-            player.setContext(this);
-            player.setSongIndex(songIndex);
-            player.setSongs(songsArrayList);
-            player.setSong(song);
-            createAudioProgressbarUpdater();
-            player.setProgressHandler(progressUpdateHandler);
-            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
-            ContextCompat.startForegroundService(DetailActivity.this, play);
-
-        }else{
-            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
-
-            player.setContext(this);
-            player.setFileUri(Uri.parse(song.getmSongUri()));
-            player.setContext(this);
-            player.setSongIndex(songIndex);
-            player.setSongs(songsArrayList);
-            player.setSong(song);
-            createAudioProgressbarUpdater();
-            player.setProgressHandler(progressUpdateHandler);
-            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
-            sendBroadcast(broadcastIntent);
-        }
-
-        mSeekBar.setMax(player.getTotalAudioDuration()/1000);
-        Toast.makeText(DetailActivity.this, "Size " +player.getTotalAudioDuration()/1000, Toast.LENGTH_SHORT).show();
-    }
-
-    public void playPreviousSong() {
-        if (songIndex > 0) {
-            songIndex--;
-            song = songsArrayList.get(songIndex);
-            mTitle.setText(song.getSongTitle());
-            setPosterImage();
-            Toast.makeText(this, "previous" + song.getSongTitle(), Toast.LENGTH_SHORT).show();
-            checkIsPlaying = true;
-            changePlayIcon();
-            player.stopMedia();
-            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
-
-            player.setFileUri(Uri.parse(song.getmSongUri()));
-            player.setContext(this);
-            player.setSongIndex(songIndex);
-            player.setSongs(songsArrayList);
-            player.setSong(song);
-
-            sendBroadcast(broadcastIntent);
-
-        }
-
-    }
-
-    public void playNextSong() {
-        if (songIndex < songsArrayList.size()) {
-
-            songIndex++;
-            song = songsArrayList.get(songIndex);
-            mTitle.setText(song.getSongTitle());
-            setPosterImage();
-            Toast.makeText(this, "next " + song.getSongTitle(), Toast.LENGTH_SHORT).show();
-            checkIsPlaying = true;
-            player.stopMedia();
-            changePlayIcon();
-
-            Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
-
-            player.setFileUri(Uri.parse(song.getmSongUri()));
-            player.setContext(this);
-            player.setSongIndex(songIndex);
-            player.setSongs(songsArrayList);
-            player.setSong(song);
-            sendBroadcast(broadcastIntent);
-            maxTime.setText(setMaxTime(player.getTotalAudioDuration()));
-        }
-    }
-
-    public void changePlayIcon() {
-        if (checkIsPlaying) {
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-                playButton.setImageDrawable(getDrawable(R.drawable.pause));
-            else
-                playButton.setImageDrawable(getResources().getDrawable(R.drawable.pause));
-        } else {
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-                playButton.setImageDrawable(getDrawable(R.drawable.play));
-            else
-                playButton.setImageDrawable(getResources().getDrawable(R.drawable.play));
-        }
-
-    }
-
-    public void setPosterImage() {
-
-        MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-        byte[] rawCover;
-        Bitmap cover;
-        Uri uri = Uri.parse(song.getmSongUri());
-        BitmapFactory.Options bfo = new BitmapFactory.Options();
-        metadataRetriever.setDataSource(getApplicationContext(), uri);
-        rawCover = metadataRetriever.getEmbeddedPicture();
-        if (null != rawCover) {
-            cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
-            Bitmap songImage = BitmapFactory
-                    .decodeByteArray(rawCover, 0, rawCover.length);
-            mPosterCircle.setImageBitmap(songImage);
-            final BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = 8;
-            background = blurImage(this, cover);
-            BitmapDrawable ob = new BitmapDrawable(getResources(), background);
-            final View view = this.getWindow().getDecorView();
-            view.setBackground(ob);
-        }
-
+        unregisterReceiver(notifyChangeActiivty);
+        super.onDestroy();
     }
 
 }

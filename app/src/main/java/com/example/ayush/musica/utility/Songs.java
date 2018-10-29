@@ -1,16 +1,31 @@
 package com.example.ayush.musica.utility;
 
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.arch.persistence.room.PrimaryKey;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+@Entity(tableName = "favouritesPlaylist")
 public class Songs implements Parcelable {
+    @PrimaryKey(autoGenerate = true)
+    private int id;
     private long mSongID;
+
     private String mSongTitle;
     private String mSongartist;
     private String mSongUri;
 
 
+    public Songs(int id,long sondId,String title, String artist, String uri){
+        mSongID = sondId;
+        mSongTitle = title;
+        mSongartist = artist;
+        mSongUri = uri;
+    }
+    @Ignore
     public Songs(long id, String title, String artist, String uri){
+
         mSongID = id;
         mSongTitle = title;
         mSongartist = artist;
