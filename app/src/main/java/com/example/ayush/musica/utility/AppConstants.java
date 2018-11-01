@@ -1,13 +1,21 @@
-package com.example.ayush.musica;
+package com.example.ayush.musica.utility;
 
 public class AppConstants {
 
     public static final String APP_NAME = "Musica";
     public static final String STORE = "com.example.ayush.musica.STORE";
+    public static final String FIRST_LAUNCH_KEY = "com.example.ayush.musica.MAINACTIVITY";
+    public static final String IS_FIRST_LAUNCH = "isFirstLaunch";
     public static final String MEDIA_ARRAY_LIST = "mediaArrayList";
-    public static final String SONG_RETRIEVE_ERROR = "song not retrieved";
-    public static final String AUDIO_FOCUS_NOT_AVAILABLE = "audio focus not available";
 
+    public static final String SONG_RETRIEVE_ERROR = "song not retrieved";
+    public static final String CHECK_IS_PLAYING = "checkIsPlaying";
+    public static final String MEDIA_PLAYER_POSITION = "mediaPlayerPosition";
+    public static final String ADDED_TO_FAVOURITES = " Added to favourites";
+
+
+
+    public static final String AUDIO_FOCUS_NOT_AVAILABLE = "audio focus not available";
     public static final String BROADCAST_PLAY_NEW_SONG = "com.example.ayush.musica.action_play";
 
     public static final String SONG_SERVICE_TAG = "Song Service";

@@ -2,64 +2,75 @@ package com.example.ayush.musica.activity;
 
 import android.Manifest;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-//import android.support.v7.graphics.Palette;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.View;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.Toast;
 
-
-import com.example.ayush.musica.interfaces.MusicClickListner;
-import com.example.ayush.musica.adapters.MusicListAdapter;
 import com.example.ayush.musica.R;
+import com.example.ayush.musica.adapters.MusicListAdapter;
+import com.example.ayush.musica.interfaces.MusicClickListner;
 import com.example.ayush.musica.utility.Songs;
 import com.example.ayush.musica.utility.Store;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
+import static com.example.ayush.musica.utility.AppConstants.FIRST_LAUNCH_KEY;
+import static com.example.ayush.musica.utility.AppConstants.IS_FIRST_LAUNCH;
+
 public class MainActivity extends AppCompatActivity  implements MusicClickListner {
-    private Integer color = Color.parseColor("#000000");
-    public int vibrant;
-    public int mDarkMutedColor;
-    public int mMutedColor;
-    public View view;
 
-
-
-    private ArrayList<Songs> arrayList = new ArrayList<>();
+    private ArrayList<Songs> arrayList;
     @BindView(R.id.main_music_Recyler)
     RecyclerView mRecyclerView;
     @BindView(R.id.main_toolbar)
     Toolbar mToolbar;
 
     private MusicListAdapter mAdapter;
-
+    private SharedPreferences sharedPreferences;
+    private Store store;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-        setSupportActionBar(mToolbar);
-        Toast.makeText(MainActivity.this,MainActivity.this.getPackageName(),Toast.LENGTH_SHORT).show();
-        getSupportActionBar().setTitle("Musica");
-        permission();
 
+        setSupportActionBar(mToolbar);
+        getSupportActionBar().setTitle(getResources().getString(R.string.app_name));
+        store = new Store(getApplicationContext());
+
+        sharedPreferences = this.getSharedPreferences(FIRST_LAUNCH_KEY, Context.MODE_PRIVATE);
+        if (sharedPreferences.getBoolean(IS_FIRST_LAUNCH, true)) {
+            permission();
+            sharedPreferences.edit().putBoolean(IS_FIRST_LAUNCH, false).apply();
+        } else {
+            arrayList = new ArrayList<>();
+            arrayList = store.getMediaList();
+            mAdapter = new MusicListAdapter(this, arrayList);
+            RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
+            mRecyclerView.setLayoutManager(layoutManager);
+            mRecyclerView.setHasFixedSize(true);
+            mRecyclerView.setAdapter(mAdapter);
+        }
 
     }
     @Override
@@ -87,6 +98,8 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     public void doStuff(){
 
         getMusic();
+        Collections.sort(arrayList);
+
         mAdapter = new MusicListAdapter(this, arrayList);
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(layoutManager);
@@ -97,6 +110,8 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     }
     public void getMusic()
     {
+        arrayList = new ArrayList<>();
+
         ContentResolver contentResolver = getContentResolver();
         Uri songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         Cursor songCursor = contentResolver.query(songUri, null, null, null, null);
@@ -126,9 +141,6 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
-
-            // Permission is not granted
-            // Should we show an explanation?
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.READ_EXTERNAL_STORAGE)) {
                // Log.i("FUCK","ERROR PERMISSION");
@@ -141,9 +153,7 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
                         new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
                         0);
 
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                // app-defined int constant. The callback method gets the
-                // result of the request.
+
             }
         } else {
             // Permission has already been granted
@@ -154,133 +164,41 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
 
     }
 
+    public void onRefresh() {
+        getMusic();
+        Collections.sort(arrayList);
+        store.saveMediaList(arrayList);
+        store.storeSongIndex(-1);
+    }
 
     @Override
     public void onMusicNameClick(Songs song,int position) {
-        Toast.makeText(this,song.getSongTitle()+"CLICKED",Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this,DetailActivity.class);
-
         storeDetails(position);
-        Log.i("Array", "arrayList size in main" + arrayList.size());
         startActivity(intent);
     }
     public void storeDetails(int i){
-        Store store = new Store(getApplicationContext());
-        store.saveMediaList(arrayList);
         store.storeSongIndex(i);
     }
-}
 
-
-
-
-
-
-
-
-
-
-    /*public void blurImageView() {
-        // ImageView resultImage = (ImageView) findViewById(R.id.image);
-        Bitmap resultBmp = com.example.ayush.bakingapp.BlurBuilder.blurImage(this, BitmapFactory.decodeResource(getResources(), R.drawable.image));
-        //resultImage.setImageBitmap(resultBmp);
-        //resultImage.setAlpha(100);
-
-        BitmapDrawable ob = new BitmapDrawable(getResources(), resultBmp);
-        view.setBackgroundColor(getResources().getColor(R.color.white));
-        view.setBackground(ob);
-        loadImageColor();
-        Toast.makeText(this, "DOOOOONEEEE", Toast.LENGTH_SHORT).show();
-        view.getBackground().setAlpha(50);
-
-
-
-
-      /*  final Activity activity = getActivity();
-        final View content = activity.findViewById(android.R.id.content).getRootView();
-        if (content.getWidth() > 0) {
-            Bitmap image = BitmapFactory.decodeResource(getResources(), constants.images[value]);
-            root.setBackgroundDrawable(new BitmapDrawable(activity.getResources(), image));
-        } else {
-            content.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override
-                public void onGlobalLayout() {
-                    Bitmap image = BitmapFactory.decodeResource(getResources(), constants.images[value]);
-                    // Bitmap image = BlurBuilder.blur(content,getContext());
-                    root.setBackgroundDrawable(new BitmapDrawable(activity.getResources(), image));
-                }
-            });
-        }*/
-        //root.getBackground().setAlpha(250);
-
-    /*
-
-    public void loadImageColor() {
-
-        Log.i("TAG", "BEFORE PICASSO");
-        int drawableResourceId = this.getResources().getIdentifier("image", "drawable", this.getPackageName());
-
-       /* Palette.from(bitmap).generate(new Palette.PaletteAsyncListener() {
-            @Override
-            public void onGenerated(@NonNull Palette palette) {
-                Palette.Swatch textSwatch = palette.getVibrantSwatch();
-                if (textSwatch != null) {
-                    color = textSwatch.getRgb();
-                    Log.i("TAG","PICASSO Target onGenerated");
-                }
-                vibrant = palette.getLightVibrantColor(color);
-                mDarkMutedColor = palette.getDarkMutedColor(color);
-                mMutedColor = palette.getMutedColor(color);
-                setBackground();
-
-            }
-        });
-
-        Picasso.get().load(drawableResourceId)
-                .into(new Target() {
-
-
-
-                          @Override
-                          public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
-                              Log.i("TAG","PICASSO Target onBitmapLoaded");
-                              Palette.from(bitmap).generate(new Palette.PaletteAsyncListener() {
-                                  @Override
-                                  public void onGenerated(@NonNull Palette palette) {
-                                      Palette.Swatch textSwatch = palette.getVibrantSwatch();
-                                      if (textSwatch != null) {
-                                          color = textSwatch.getRgb();
-                                          Log.i("TAG","PICASSO Target onGenerated");
-                                      }
-                                      vibrant = palette.getLightVibrantColor(color);
-                                      mDarkMutedColor = palette.getDarkMutedColor(color);
-                                      mMutedColor = palette.getMutedColor(color);
-                                      setBackground();
-
-                                  }
-                              });
-
-                          }
-
-                          @Override
-                          public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-                              Log.i("TAG", e.getMessage());
-
-                          }
-
-                          @Override
-                          public void onPrepareLoad(Drawable placeHolderDrawable) {
-
-                          }
-                      }
-                );
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
     }
 
-
-    public void setBackground() {
-        //view.setBackgroundColor(vibrant);
-        Toast.makeText(this, "COLOR ADDED", Toast.LENGTH_SHORT).show();
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.songs_favourite:
+                Intent i = new Intent(MainActivity.this, FavouritesActivity.class);
+                startActivity(i);
+            case R.id.song_list_Refresh:
+                onRefresh();
+                Toast.makeText(MainActivity.this, getResources().getString(R.string.refreshed_all_songs), Toast.LENGTH_SHORT).show();
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
-
 }
-*/

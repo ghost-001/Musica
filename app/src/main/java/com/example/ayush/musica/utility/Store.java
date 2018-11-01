@@ -9,9 +9,9 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 
-import static com.example.ayush.musica.AppConstants.MEDIA_ARRAY_LIST;
-import static com.example.ayush.musica.AppConstants.SONG_INDEX;
-import static com.example.ayush.musica.AppConstants.STORE;
+import static com.example.ayush.musica.utility.AppConstants.MEDIA_ARRAY_LIST;
+import static com.example.ayush.musica.utility.AppConstants.SONG_INDEX;
+import static com.example.ayush.musica.utility.AppConstants.STORE;
 
 public class Store {
     private SharedPreferences sharedPreferences;

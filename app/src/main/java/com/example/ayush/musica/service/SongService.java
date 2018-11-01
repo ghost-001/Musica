@@ -1,4 +1,4 @@
-package com.example.ayush.musica;
+package com.example.ayush.musica.service;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -33,7 +33,9 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 
+import com.example.ayush.musica.R;
 import com.example.ayush.musica.activity.DetailActivity;
+import com.example.ayush.musica.utility.PlaybackStatus;
 import com.example.ayush.musica.utility.Songs;
 import com.example.ayush.musica.utility.Store;
 import com.example.ayush.musica.widget.MediaWidget;
@@ -41,20 +43,18 @@ import com.example.ayush.musica.widget.MediaWidget;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static com.example.ayush.musica.AppConstants.ACTION_NEXT;
-import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
-import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
-import static com.example.ayush.musica.AppConstants.ACTION_PREVIOUS;
-import static com.example.ayush.musica.AppConstants.ACTION_STOP;
-import static com.example.ayush.musica.AppConstants.APP_NAME;
-import static com.example.ayush.musica.AppConstants.AUDIO_FOCUS_NOT_AVAILABLE;
-import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
-import static com.example.ayush.musica.AppConstants.MEDIA_SESSION_TAG;
-import static com.example.ayush.musica.AppConstants.NOTIFICATION_CHANNEL_NAME;
-import static com.example.ayush.musica.AppConstants.NOTIFICATION_DESCRIPTION;
-import static com.example.ayush.musica.AppConstants.PROGRESS_HANDLER_NULL;
-import static com.example.ayush.musica.AppConstants.SONG_RETRIEVE_ERROR;
-import static com.example.ayush.musica.AppConstants.SONG_SERVICE_TAG;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_NEXT;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PAUSE;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PLAY;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PREVIOUS;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_STOP;
+import static com.example.ayush.musica.utility.AppConstants.APP_NAME;
+import static com.example.ayush.musica.utility.AppConstants.AUDIO_FOCUS_NOT_AVAILABLE;
+import static com.example.ayush.musica.utility.AppConstants.BROADCAST_PLAY_NEW_SONG;
+import static com.example.ayush.musica.utility.AppConstants.MEDIA_SESSION_TAG;
+import static com.example.ayush.musica.utility.AppConstants.PROGRESS_HANDLER_NULL;
+import static com.example.ayush.musica.utility.AppConstants.SONG_RETRIEVE_ERROR;
+import static com.example.ayush.musica.utility.AppConstants.SONG_SERVICE_TAG;
 
 public class SongService extends Service implements MediaPlayer.OnCompletionListener,
         MediaPlayer.OnPreparedListener, MediaPlayer.OnSeekCompleteListener, AudioManager.OnAudioFocusChangeListener {
@@ -89,14 +89,18 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     private BroadcastReceiver playNewAudio = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-
-            songIndex = store.getSongIndex();
+            Store s = new Store(SongService.this);
+            songIndex = s.getSongIndex();
+            songs = s.getMediaList();
             if (songIndex < 0)
                 songIndex = 0;
             song = songs.get(songIndex);
             stopMedia();
-            if (mediaPlayer != null)
+            if (mediaPlayer != null) {
                 mediaPlayer.reset();
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
             initPlayer();
             updateMetaData();
             buildNotification(PlaybackStatus.PLAYING);
@@ -158,6 +162,8 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             stopSelf();
         }
 
+        // if(mediaPlayer!=null)
+        //       mediaPlayer.reset();
         if (mediaSessionManager == null) {
             try {
                 initMediaSession();
@@ -267,7 +273,9 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             return;
         if (mediaPlayer.isPlaying()) {
             mediaPlayer.stop();
+
         }
+        removeAudioFocus();
         notifyChange(ACTION_PAUSE);
     }
 
@@ -282,6 +290,9 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         }
     }
 
+    public Songs getCurrentSong() {
+        return song;
+    }
     public void saveCurrentPosition(){
         currentPosition = mediaPlayer.getCurrentPosition();
     }
@@ -360,9 +371,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             audioManager = (AudioManager)
                     this.getSystemService(Context.AUDIO_SERVICE);
             int focusRequest = audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-            if (focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                return true;
-            }
+            return focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         } else if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
             AudioAttributes mAudioAttributes =
@@ -376,9 +385,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                             .setOnAudioFocusChangeListener(this)
                             .build();
             int focusRequest = audioManager.requestAudioFocus(mAudioFocusRequest);
-            if (focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                return true;
-            }
+            return focusRequest == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         }
         return false;
     }
@@ -389,7 +396,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 audioManager.abandonAudioFocus(this);
     }
 
-    private void initMediaSession() throws RemoteException {
+    private void initMediaSession() {
         if (mediaSessionManager != null)
             return;
 
@@ -405,6 +412,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     public void onCompletion(MediaPlayer mediaPlayer) {
         stopMedia();
         removeNotification();
+        currentPosition = 0;
         stopSelf();
     }
 
@@ -417,7 +425,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     @Override
     public void onSeekComplete(MediaPlayer m) {
         mediaPlayer.reset();
-        currentPosition = 0;
+        saveCurrentPosition();
 
     }
 

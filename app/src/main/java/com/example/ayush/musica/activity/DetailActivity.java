@@ -1,5 +1,7 @@
 package com.example.ayush.musica.activity;
 
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -15,58 +17,65 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.ayush.musica.R;
-import com.example.ayush.musica.SongService;
+import com.example.ayush.musica.database.AppExecutors;
 import com.example.ayush.musica.database.SongDatabase;
+import com.example.ayush.musica.service.SongService;
 import com.example.ayush.musica.utility.Songs;
 import com.example.ayush.musica.utility.Store;
+import com.example.ayush.musica.viewModel.DatabaseViewModel;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
-import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
-import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
-import static com.example.ayush.musica.AppConstants.SONG_SERVICE_TAG;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PAUSE;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PLAY;
+import static com.example.ayush.musica.utility.AppConstants.BROADCAST_PLAY_NEW_SONG;
+import static com.example.ayush.musica.utility.AppConstants.CHECK_IS_PLAYING;
+import static com.example.ayush.musica.utility.AppConstants.MEDIA_PLAYER_POSITION;
+import static com.example.ayush.musica.utility.AppConstants.SONG_SERVICE_TAG;
 import static com.example.ayush.musica.utility.BlurBuilder.blurImage;
 
-//import android.support.v7.graphics.Palette;
 public class DetailActivity extends AppCompatActivity {
 
 
     ArrayList<Songs> songsArrayList;
     Songs song;
     Integer songIndex;
+    Long songId = -1L;
     Bitmap background = null;
-    int colorBG;
-    public int vibrant;
-    public int mDarkMutedColor;
-    public int mMutedColor;
 
 
     private Handler progressUpdateHandler = null;
-
+    @BindView(R.id.detail_relative_root)
+    ScrollView mScrollView;
     private boolean checkIsPlaying = false;
     private boolean songPaused = false;
     private boolean serviceBound = false;
+    private boolean checkBookmark = false;
+    private boolean playingOld = false;
 
     private Store store;
     private SongService songService;
     private Intent playIntent;
     private SongDatabase songDatabase;
+    private int pos = 0;
+
 
     @BindView(R.id.detail_play)
     ImageButton playButton;
@@ -86,9 +95,7 @@ public class DetailActivity extends AppCompatActivity {
     TextView mTitle;
     @BindView(R.id.detail_circle_image)
     ImageView mPosterCircle;
-    @BindView(R.id.detail_relative_root)
-    RelativeLayout mRelativeLayout;
-
+    private Integer songDbId;
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
@@ -97,7 +104,13 @@ public class DetailActivity extends AppCompatActivity {
             songService = binder.getService();
             serviceBound = true;
             playIntent = new Intent(DetailActivity.this, SongService.class);
-            // playButtonClick();
+            songService.setProgressHandler(progressUpdateHandler);
+            if (playingOld) {
+                playIntent.setAction(ACTION_PLAY);
+                ContextCompat.startForegroundService(DetailActivity.this, playIntent);
+                songService.changePosition(pos);
+                changePlayIcon();
+            } else playButtonClick();
 
         }
 
@@ -107,7 +120,7 @@ public class DetailActivity extends AppCompatActivity {
         }
     };
 
-    private BroadcastReceiver notifyChangeActiivty = new BroadcastReceiver() {
+    private BroadcastReceiver notifyChangeActivity = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction() != null)
@@ -138,7 +151,14 @@ public class DetailActivity extends AppCompatActivity {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ACTION_PLAY);
         intentFilter.addAction(ACTION_PAUSE);
-        registerReceiver(notifyChangeActiivty, intentFilter);
+        registerReceiver(notifyChangeActivity, intentFilter);
+
+
+        if (savedInstanceState != null) {
+            checkIsPlaying = savedInstanceState.getBoolean(CHECK_IS_PLAYING);
+            pos = savedInstanceState.getInt(MEDIA_PLAYER_POSITION);
+            playingOld = true;
+        }
 
         songsArrayList = new ArrayList<>();
         store = new Store(this);
@@ -147,13 +167,17 @@ public class DetailActivity extends AppCompatActivity {
         if (songIndex == -1)
             songIndex = 0;
         song = songsArrayList.get(songIndex);
+        songId = song.getSongID();
 
-        mRelativeLayout.setAlpha(.9f);
+        songDatabase = SongDatabase.getsInstance(getApplicationContext());
+        checkIfBookmark();
+
+
+        mScrollView.setAlpha(.9f);
         mTitle.getBackground().setAlpha(110);
         bindBackgroundAudioService();
         createAudioProgressbarUpdater();
         setPosterImage();
-        songDatabase = SongDatabase.getsInstance(getApplicationContext());
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -177,9 +201,7 @@ public class DetailActivity extends AppCompatActivity {
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-
                 if (b) songService.changePosition(seekBar.getProgress());
-
             }
 
             @Override
@@ -196,37 +218,74 @@ public class DetailActivity extends AppCompatActivity {
         favouriteView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                saveFavourite();
+                if (checkBookmark)
+                    deleteFromDatabase();
+                else
+                    saveFavourite();
+
             }
         });
     }
 
+    public void checkIfBookmark() {
+        final DatabaseViewModel viewModel = ViewModelProviders.of(this).get(DatabaseViewModel.class);
+        viewModel.getSongList().observe(this, new Observer<List<Songs>>() {
+            @Override
+            public void onChanged(@Nullable List<Songs> songList) {
+                if (songList.size() != 0) {
+                    ArrayList<Songs> ss = new ArrayList<Songs>(songList);
+                    for (Songs a : ss) {
+                        if (a.getSongID() == songId) {
+                            checkBookmark = true;
+                            songDbId = a.getId();
+                            changeFavIcon();
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    public void deleteFromDatabase() {
+        songDatabase.favouriteDao().deleteSongByID(songDbId);
+        checkBookmark = false;
+        changeFavIcon();
+        Toast.makeText(DetailActivity.this, getResources().getString(R.string.delete_from_favourites), Toast.LENGTH_SHORT).show();
+    }
 
     public void saveFavourite() {
-        Toast.makeText(this, "CLicked", Toast.LENGTH_SHORT).show();
+        AppExecutors.getsInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                songDatabase.favouriteDao().InsertSong(song);
+            }
+        });
+        checkBookmark = true;
+        changeFavIcon();
+        Toast.makeText(this, getResources().getString(R.string.added_to_favourites), Toast.LENGTH_SHORT).show();
     }
 
 
     private void playButtonClick() {
         if (!checkIsPlaying) {
-            checkIsPlaying = true;
-//            playIntent.setAction(ACTION_PLAY);
             changePlayIcon();
-            if (songPaused) {
-                songPaused = false;
-                resumeMedia();
-            } else if (!songPaused)
+            if (!songPaused)
                 playMedia();
+            else {
+                songPaused = false;
+                checkIsPlaying = true;
+                resumeMedia();
+            }
         } else {
-            songService.pauseMedia();
             playIntent.setAction(ACTION_PAUSE);
+            ContextCompat.startForegroundService(DetailActivity.this, playIntent);
             checkIsPlaying = false;
             songPaused = true;
             changePlayIcon();
-            playMedia();
         }
-
     }
+
 
     private void resumeMedia() {
         songService.resumeMedia();
@@ -234,12 +293,13 @@ public class DetailActivity extends AppCompatActivity {
 
     private void playMedia() {
         if (serviceBound && !songService.isPlaying()) {
+            checkIsPlaying = true;
             songService.setProgressHandler(progressUpdateHandler);
             ContextCompat.startForegroundService(DetailActivity.this, playIntent);
-
         } else {
+            checkIsPlaying = true;
             Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
-            // createAudioProgressbarUpdater();
+            createAudioProgressbarUpdater();
             songService.setProgressHandler(progressUpdateHandler);
             sendBroadcast(broadcastIntent);
         }
@@ -251,13 +311,17 @@ public class DetailActivity extends AppCompatActivity {
             store.storeSongIndex(songIndex);
 
             song = songsArrayList.get(songIndex);
-            mTitle.setText(song.getSongTitle());
-            setPosterImage();
-            checkIsPlaying = true;
-            changePlayIcon();
-            songService.stopMedia();
+            songId = song.getSongID();
             Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
             sendBroadcast(broadcastIntent);
+            setPosterImage();
+            checkIsPlaying = true;
+            checkBookmark = false;
+            checkIfBookmark();
+            changeFavIcon();
+            changePlayIcon();
+            songService.stopMedia();
+
 
         }
 
@@ -269,26 +333,19 @@ public class DetailActivity extends AppCompatActivity {
             songIndex++;
             store.storeSongIndex(songIndex);
 
-
             song = songsArrayList.get(songIndex);
-            mTitle.setText(song.getSongTitle());
-            setPosterImage();
-            checkIsPlaying = true;
-            changePlayIcon();
-            songService.stopMedia();
+            songId = song.getSongID();
             Intent broadcastIntent = new Intent(BROADCAST_PLAY_NEW_SONG);
             sendBroadcast(broadcastIntent);
+            setPosterImage();
+            checkIsPlaying = true;
+            checkBookmark = false;
+            checkIfBookmark();
+            changeFavIcon();
+            changePlayIcon();
+            songService.stopMedia();
+
             maxTime.setText(setTime(songService.getTotalAudioDuration()));
-        }
-
-    }
-
-
-    public void changePlayIcon() {
-        if (checkIsPlaying) {
-            playButton.setImageDrawable(getDrawable(R.drawable.pause));
-        } else {
-            playButton.setImageDrawable(getDrawable(R.drawable.play));
         }
 
     }
@@ -318,10 +375,7 @@ public class DetailActivity extends AppCompatActivity {
                                 String x = setTime(currentDuration);
                                 currentTime.setText(x);
                                 maxTime.setText(setTime(totalDuration));
-                                if (totalDuration == currentDuration) {
-                                    songService.stopSelf();
-                                    songService.resetMediaPlayer();
-                                }
+
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 Log.d(SONG_SERVICE_TAG, "ERROR IN DETAIL ACTIVITY HANDLER");
@@ -334,11 +388,12 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     public void setPosterImage() {
+        mTitle.setText(song.getSongTitle());
 
         MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
         byte[] rawCover;
         Bitmap cover;
-        mTitle.setText(song.getSongTitle());
+
         Uri uri = Uri.parse(song.getSongUri());
         BitmapFactory.Options bfo = new BitmapFactory.Options();
         metadataRetriever.setDataSource(getApplicationContext(), uri);
@@ -380,71 +435,42 @@ public class DetailActivity extends AppCompatActivity {
         return finalTimerString;
     }
 
+    public void changePlayIcon() {
+        if (checkIsPlaying) {
+            playButton.setImageDrawable(getDrawable(R.drawable.pause));
+        } else {
+            playButton.setImageDrawable(getDrawable(R.drawable.play));
+        }
+
+    }
+
+    private void changeFavIcon() {
+        if (checkBookmark)
+            favouriteView.setImageDrawable(getDrawable(R.drawable.ic_favorite_black_24dp));
+        else
+            favouriteView.setImageDrawable(getDrawable(R.drawable.ic_favorite_border_black_24dp));
+    }
+
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putBoolean("ServiceState", serviceBound);
+        if (serviceBound) {
+            outState.putBoolean(CHECK_IS_PLAYING, checkIsPlaying);
+            outState.putInt(MEDIA_PLAYER_POSITION, songService.getCurrentPosition() / 1000);
+        }
         if (songService.isPlaying()) {
             songService.saveCurrentPosition();
-            songPaused = true;
-            outState.putBoolean("SongPaused", serviceBound);
-            changePlayIcon();
         }
         super.onSaveInstanceState(outState);
     }
 
     @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        serviceBound = savedInstanceState.getBoolean("ServiceState");
-        songPaused = savedInstanceState.getBoolean("SongPaused");
-        if (songPaused) {
-            checkIsPlaying = true;
-            changePlayIcon();
-            playIntent = new Intent(DetailActivity.this, SongService.class);
-            playIntent.setAction(ACTION_PLAY);
-            ContextCompat.startForegroundService(DetailActivity.this, playIntent);
-        }
-    }
-
-
-    @Override
     protected void onDestroy() {
         if (serviceBound) {
             unbindService(serviceConnection);
+            songService.stopSelf();
         }
-        unregisterReceiver(notifyChangeActiivty);
+        unregisterReceiver(notifyChangeActivity);
         super.onDestroy();
     }
 
 }
-/*
-public void getColor(Bitmap bitmap) {
-       Palette p = Palette.from(bitmap).generate();
-        Palette.Swatch vibrantSwatch = p.getVibrantSwatch();
-        if (vibrantSwatch != null) {
-            // int titleColor = vibrantSwatch.getTitleTextColor();
-            int color = vibrantSwatch.getRgb();
-            int titleColor = vibrant = p.getDarkMutedColor(color);
-            colorBG = titleColor;
-            //View view = this.getWindow().getDecorView();
-            //view.setBackgroundColor(titleColor);\
-            // BitmapDrawable ob = new BitmapDrawable(getResources(), background);
-            //view.setBackgroundDrawable(ob);
-
-
-        }
-        Palette.from(bitmap).generate(new Palette.PaletteAsyncListener() {
-            public void onGenerated(Palette p) {
-                // Use generated instance
-                Palette.Swatch vibrant = p.getVibrantSwatch();
-                if (vibrant != null) {
-                    int color = vibrant.getRgb();
-                    int titleColor = p.getDarkMutedColor(color);
-                    colorBG = titleColor;
-                    // ...
-                }
-            }
-        });
-    }
-        */
-//}

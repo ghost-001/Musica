@@ -11,24 +11,19 @@ import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.support.v4.app.TaskStackBuilder;
-import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
 import com.example.ayush.musica.R;
-import com.example.ayush.musica.SongService;
 import com.example.ayush.musica.activity.DetailActivity;
+import com.example.ayush.musica.service.SongService;
 import com.example.ayush.musica.utility.Songs;
 import com.example.ayush.musica.utility.Store;
 
-import butterknife.internal.Utils;
-
-import static com.example.ayush.musica.AppConstants.ACTION_NEXT;
-import static com.example.ayush.musica.AppConstants.ACTION_PAUSE;
-import static com.example.ayush.musica.AppConstants.ACTION_PLAY;
-import static com.example.ayush.musica.AppConstants.ACTION_PLAY_WIDGET;
-import static com.example.ayush.musica.AppConstants.ACTION_PREVIOUS;
-import static com.example.ayush.musica.AppConstants.BROADCAST_PLAY_NEW_SONG;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_NEXT;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PAUSE;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PLAY;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PREVIOUS;
 
 
 public class MediaWidget extends AppWidgetProvider {
@@ -59,7 +54,6 @@ public class MediaWidget extends AppWidgetProvider {
         updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds);
         updateIntent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
         context.sendBroadcast(updateIntent);
-        // }
     }
 
     @Override
@@ -79,9 +73,27 @@ public class MediaWidget extends AppWidgetProvider {
         Store store = new Store(context);
         int index = store.getSongIndex();
         if (index < 0) index = 0;
-        Songs song = store.getMediaList().get(index);
+        if (store.getMediaList() != null) {
+            Songs song = store.getMediaList().get(index);
+            views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
 
-        views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
+            MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+            byte[] rawCover;
+            Bitmap cover;
+            Uri uri = Uri.parse(song.getSongUri());
+            BitmapFactory.Options bfo = new BitmapFactory.Options();
+            metadataRetriever.setDataSource(context.getApplicationContext(), uri);
+            rawCover = metadataRetriever.getEmbeddedPicture();
+            if (rawCover != null) {
+                bfo.inSampleSize = 2;
+                cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
+                views.setImageViewBitmap(R.id.widget_background_image, cover);
+            } else {
+                views.setImageViewBitmap(R.id.widget_background_image, null);
+            }
+        }
+
+
         setButton(context, views, false);
         pushUpdate(context, appWidgetId, views);
     }
@@ -118,9 +130,9 @@ public class MediaWidget extends AppWidgetProvider {
             bfo.inSampleSize = 2;
             cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
             views.setImageViewBitmap(R.id.widget_background_image,cover);
+        } else {
+            views.setImageViewBitmap(R.id.widget_background_image, null);
         }
-
-
 
         views.setViewVisibility(R.id.widget_song_name, View.VISIBLE);
         views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
@@ -183,6 +195,6 @@ public class MediaWidget extends AppWidgetProvider {
         pendingIntent = PendingIntent.getService(context, 0, intent, 0);
         views.setOnClickPendingIntent(R.id.widget_previous_btn, pendingIntent);
 
-    }   
+    }
 }
 

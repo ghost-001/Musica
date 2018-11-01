@@ -5,9 +5,10 @@ import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
 
 @Entity(tableName = "favouritesPlaylist")
-public class Songs implements Parcelable {
+public class Songs implements Parcelable, Comparable<Songs> {
     public int getId() {
         return id;
     }
@@ -109,4 +110,12 @@ public class Songs implements Parcelable {
             return new Songs[size];
         }
     };
+
+
+    @Override
+    public int compareTo(@NonNull Songs songs) {
+        String s1 = this.getSongTitle();
+        String s2 = songs.getSongTitle();
+        return s1.compareToIgnoreCase(s2);
+    }
 }

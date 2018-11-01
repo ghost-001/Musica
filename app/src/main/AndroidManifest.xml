@@ -24,25 +24,16 @@
             android:parentActivityName=".activity.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
-
                 <category android:name="android.intent.category.DEFAULT" />
-
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:mimeType="audio/*" />
-                <data android:mimeType="application/ogg" />
-                <data android:mimeType="application/x-ogg" />
-                <data android:mimeType="application/itunes" />
             </intent-filter>
             <intent-filter>
                 <action android:name="com.android.music.PLAYBACK_VIEWER" />
-
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
         <service
-            android:name=".SongService"
+            android:name=".service.SongService"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -55,13 +46,14 @@
 
         <receiver android:name=".widget.MediaWidget">
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/media_widget_info" />
         </receiver>
 
+        <activity android:name=".activity.FavouritesActivity"></activity>
     </application>
 
 </manifest>
