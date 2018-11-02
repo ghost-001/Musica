@@ -54,6 +54,7 @@ public class MediaWidget extends AppWidgetProvider {
         updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds);
         updateIntent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
         context.sendBroadcast(updateIntent);
+
     }
 
     @Override
@@ -73,27 +74,9 @@ public class MediaWidget extends AppWidgetProvider {
         Store store = new Store(context);
         int index = store.getSongIndex();
         if (index < 0) index = 0;
-        if (store.getMediaList() != null) {
-            Songs song = store.getMediaList().get(index);
-            views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
+        Songs song = store.getMediaList().get(index);
 
-            MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-            byte[] rawCover;
-            Bitmap cover;
-            Uri uri = Uri.parse(song.getSongUri());
-            BitmapFactory.Options bfo = new BitmapFactory.Options();
-            metadataRetriever.setDataSource(context.getApplicationContext(), uri);
-            rawCover = metadataRetriever.getEmbeddedPicture();
-            if (rawCover != null) {
-                bfo.inSampleSize = 2;
-                cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
-                views.setImageViewBitmap(R.id.widget_background_image, cover);
-            } else {
-                views.setImageViewBitmap(R.id.widget_background_image, null);
-            }
-        }
-
-
+        views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
         setButton(context, views, false);
         pushUpdate(context, appWidgetId, views);
     }
@@ -130,9 +113,8 @@ public class MediaWidget extends AppWidgetProvider {
             bfo.inSampleSize = 2;
             cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
             views.setImageViewBitmap(R.id.widget_background_image,cover);
-        } else {
-            views.setImageViewBitmap(R.id.widget_background_image, null);
         }
+
 
         views.setViewVisibility(R.id.widget_song_name, View.VISIBLE);
         views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
@@ -187,7 +169,7 @@ public class MediaWidget extends AppWidgetProvider {
 
         intent = new Intent(ACTION_NEXT);
         intent.setComponent(service);
-          pendingIntent = PendingIntent.getService(context, 0 , intent, 0 );
+        pendingIntent = PendingIntent.getService(context, 0, intent, 0);
         views.setOnClickPendingIntent(R.id.widget_next_btn, pendingIntent);
 
         intent = new Intent(ACTION_PREVIOUS);
@@ -195,6 +177,39 @@ public class MediaWidget extends AppWidgetProvider {
         pendingIntent = PendingIntent.getService(context, 0, intent, 0);
         views.setOnClickPendingIntent(R.id.widget_previous_btn, pendingIntent);
 
+    }
+
+    public Bitmap decodeSampledBitmapFromResource(
+            String pathName) {
+        int reqWidth, reqHeight;
+        // reqWidth = ;
+        // reqWidth = (reqWidth/5)*2;
+        //reqHeight = reqWidth;
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+//  BitmapFactory.decodeStream(is, null, options);
+        BitmapFactory.decodeFile(pathName, options);
+// Calculate inSampleSize
+        //  options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+// Decode bitmap with inSampleSize set
+        options.inJustDecodeBounds = false;
+        return BitmapFactory.decodeFile(pathName, options);
+    }
+
+    public int calculateInSampleSize(BitmapFactory.Options options,
+                                     int reqWidth, int reqHeight) {
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+            if (width > height) {
+                inSampleSize = Math.round((float) height / (float) reqHeight);
+            } else {
+                inSampleSize = Math.round((float) width / (float) reqWidth);
+            }
+        }
+        return inSampleSize;
     }
 }
 

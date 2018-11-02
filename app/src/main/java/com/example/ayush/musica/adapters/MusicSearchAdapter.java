@@ -9,41 +9,41 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.example.ayush.musica.R;
-import com.example.ayush.musica.interfaces.MusicClickListner;
+import com.example.ayush.musica.interfaces.MusicSearchClickListner;
 import com.example.ayush.musica.utility.Songs;
 
 import java.util.ArrayList;
 
-
-public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.MusicViewHolder> {
+public class MusicSearchAdapter extends RecyclerView.Adapter<MusicSearchAdapter.MusicViewHolder> {
+    private final MusicSearchClickListner listner;
     private ArrayList<Songs> songs;
     private Context mContext;
-    private final MusicClickListner listner;
 
-    public MusicListAdapter(Context context, ArrayList<Songs> arrayList) {
+    public MusicSearchAdapter(Context context, ArrayList<Songs> arrayList) {
         this.songs = arrayList;
         this.mContext = context;
-        listner = (MusicClickListner) context;
+        listner = (MusicSearchClickListner) context;
     }
 
-    public void setMusicAdapter(ArrayList<Songs> s) {
+    public void setMusicSearchAdapter(ArrayList<Songs> s) {
         this.songs = s;
     }
+
     @NonNull
     @Override
-    public MusicListAdapter.MusicViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public MusicViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.music_list_item, parent, false);
         MusicViewHolder viewHolder = new MusicViewHolder(view);
         return viewHolder;
     }
 
     @Override
-    public void onBindViewHolder(@NonNull MusicListAdapter.MusicViewHolder holder, final int position) {
+    public void onBindViewHolder(@NonNull MusicViewHolder holder, final int position) {
         holder.bindSongName(songs.get(position));
         holder.mTitleTv.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                listner.onMusicNameClick(songs.get(position),position);
+                listner.onMusicSearchNameClick(songs.get(position), position);
             }
         });
     }
@@ -55,6 +55,7 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.Musi
 
     public class MusicViewHolder extends RecyclerView.ViewHolder {
         TextView mTitleTv;
+
         public MusicViewHolder(View itemView) {
             super(itemView);
             mTitleTv = itemView.findViewById(R.id.music_name);
@@ -65,5 +66,4 @@ public class MusicListAdapter extends RecyclerView.Adapter<MusicListAdapter.Musi
             mTitleTv.setText(song.getSongTitle());
         }
     }
-
 }

@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
@@ -23,9 +24,12 @@ import android.widget.Toast;
 
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.adapters.MusicListAdapter;
+import com.example.ayush.musica.adapters.MusicSearchAdapter;
 import com.example.ayush.musica.interfaces.MusicClickListner;
+import com.example.ayush.musica.interfaces.MusicSearchClickListner;
 import com.example.ayush.musica.utility.Songs;
 import com.example.ayush.musica.utility.Store;
+import com.miguelcatalan.materialsearchview.MaterialSearchView;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,17 +40,19 @@ import butterknife.ButterKnife;
 import static com.example.ayush.musica.utility.AppConstants.FIRST_LAUNCH_KEY;
 import static com.example.ayush.musica.utility.AppConstants.IS_FIRST_LAUNCH;
 
-public class MainActivity extends AppCompatActivity  implements MusicClickListner {
+public class MainActivity extends AppCompatActivity implements MusicClickListner, MusicSearchClickListner {
 
     private ArrayList<Songs> arrayList;
     @BindView(R.id.main_music_Recyler)
     RecyclerView mRecyclerView;
-    @BindView(R.id.main_toolbar)
     Toolbar mToolbar;
+    MaterialSearchView materialSearchView;
 
     private MusicListAdapter mAdapter;
+    private MusicSearchAdapter mSearchAdapter;
     private SharedPreferences sharedPreferences;
     private Store store;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +60,16 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
+        materialSearchView = findViewById(R.id.search_view);
+        mToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(mToolbar);
         getSupportActionBar().setTitle(getResources().getString(R.string.app_name));
+        getSupportActionBar().setDisplayHomeAsUpEnabled(false);
         store = new Store(getApplicationContext());
+
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(layoutManager);
+        mRecyclerView.setHasFixedSize(true);
 
         sharedPreferences = this.getSharedPreferences(FIRST_LAUNCH_KEY, Context.MODE_PRIVATE);
         if (sharedPreferences.getBoolean(IS_FIRST_LAUNCH, true)) {
@@ -66,13 +79,52 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
             arrayList = new ArrayList<>();
             arrayList = store.getMediaList();
             mAdapter = new MusicListAdapter(this, arrayList);
-            RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
-            mRecyclerView.setLayoutManager(layoutManager);
-            mRecyclerView.setHasFixedSize(true);
             mRecyclerView.setAdapter(mAdapter);
         }
 
+
+        mSearchAdapter = new MusicSearchAdapter(this, arrayList);
+        materialSearchView.setOnQueryTextListener(new MaterialSearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (newText != null && !newText.isEmpty()) {
+                    ArrayList<Songs> listFound = new ArrayList<>();
+                    for (Songs item : arrayList) {
+                        if (item.getSongTitle().toLowerCase().contains(newText.toLowerCase())) {
+                            listFound.add(item);
+                        }
+                    }
+                    MusicSearchAdapter a = new MusicSearchAdapter(MainActivity.this, listFound);
+                    //mAdapter.setMusicAdapter(listFound);
+                    mRecyclerView.setAdapter(a);
+                } else {
+                    //stateAdapter.setStateNames(searchItems);
+                    //recyclerView.setAdapter(stateAdapter);
+                }
+                return true;
+            }
+        });
+
+        materialSearchView.setOnSearchViewListener(new MaterialSearchView.SearchViewListener() {
+            @Override
+            public void onSearchViewShown() {
+
+            }
+
+            @Override
+            public void onSearchViewClosed() {
+                mAdapter.setMusicAdapter(arrayList);
+                mRecyclerView.setAdapter(mAdapter);
+            }
+        });
+
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
@@ -95,7 +147,8 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
             // permissions this app might request.
         }
     }
-    public void doStuff(){
+
+    public void doStuff() {
 
         getMusic();
         Collections.sort(arrayList);
@@ -108,16 +161,15 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
 
 
     }
-    public void getMusic()
-    {
+
+    public void getMusic() {
         arrayList = new ArrayList<>();
 
         ContentResolver contentResolver = getContentResolver();
         Uri songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         Cursor songCursor = contentResolver.query(songUri, null, null, null, null);
 
-        if(songCursor != null && songCursor.moveToFirst())
-        {
+        if (songCursor != null && songCursor.moveToFirst()) {
             int songId = songCursor.getColumnIndex(MediaStore.Audio.Media._ID);
             int songTitle = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
             int songArtist = songCursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
@@ -132,18 +184,19 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
 
                 arrayList.add(new Songs(currentId, currentTitle, currentArtist, currentUri));
 
-            } while(songCursor.moveToNext());
+            } while (songCursor.moveToNext());
 
 
         }
     }
-    public void permission(){
+
+    public void permission() {
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.READ_EXTERNAL_STORAGE)) {
-               // Log.i("FUCK","ERROR PERMISSION");
+                // Log.i("FUCK","ERROR PERMISSION");
                 // Show an explanation to the user *asynchronously* -- don't block
                 // this thread waiting for the user's response! After the user
                 // sees the explanation, try again to request the permission.
@@ -161,7 +214,6 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
         }
 
 
-
     }
 
     public void onRefresh() {
@@ -172,12 +224,25 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     }
 
     @Override
-    public void onMusicNameClick(Songs song,int position) {
-        Intent intent = new Intent(this,DetailActivity.class);
+    public void onMusicNameClick(Songs song, int position) {
+        Intent intent = new Intent(this, DetailActivity.class);
         storeDetails(position);
         startActivity(intent);
     }
-    public void storeDetails(int i){
+
+    @Override
+    public void onMusicSearchNameClick(Songs song, int position) {
+        Intent intent = new Intent(this, DetailActivity.class);
+        findBySongId(song.getSongID());
+        startActivity(intent);
+    }
+
+    public void findBySongId(long sId) {
+        searchAsynckTask s = new searchAsynckTask();
+        s.execute(sId);
+    }
+
+    public void storeDetails(int i) {
         store.storeSongIndex(i);
     }
 
@@ -185,12 +250,19 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
+        MenuItem item = menu.findItem(R.id.action_search);
+        materialSearchView.setMenuItem(item);
+
+        super.onCreateOptionsMenu(menu);
         return true;
     }
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.search_view:
+                materialSearchView.setMenuItem(item);
             case R.id.songs_favourite:
                 Intent i = new Intent(MainActivity.this, FavouritesActivity.class);
                 startActivity(i);
@@ -199,6 +271,31 @@ public class MainActivity extends AppCompatActivity  implements MusicClickListne
                 Toast.makeText(MainActivity.this, getResources().getString(R.string.refreshed_all_songs), Toast.LENGTH_SHORT).show();
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (materialSearchView.isSearchOpen()) {
+            materialSearchView.closeSearch();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    private class searchAsynckTask extends AsyncTask<Long, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Long... longs) {
+            Long sId = longs[0];
+            ArrayList<Songs> songList = store.getMediaList();
+            for (int i = 0; i < songList.size(); i++) {
+                if (songList.get(i).getSongID() == sId) {
+                    store.storeSongIndex(i);
+                    break;
+                }
+            }
+            return null;
         }
     }
 }

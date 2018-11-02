@@ -23,7 +23,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
@@ -162,13 +161,11 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
             stopSelf();
         }
 
-        // if(mediaPlayer!=null)
-        //       mediaPlayer.reset();
         if (mediaSessionManager == null) {
             try {
                 initMediaSession();
                 initPlayer();
-            } catch (RemoteException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 stopSelf();
             }

@@ -13,6 +13,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -228,7 +229,9 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     public void checkIfBookmark() {
-        final DatabaseViewModel viewModel = ViewModelProviders.of(this).get(DatabaseViewModel.class);
+        searchDbAsynckTask task = new searchDbAsynckTask();
+        task.execute();
+        /*final DatabaseViewModel viewModel = ViewModelProviders.of(this).get(DatabaseViewModel.class);
         viewModel.getSongList().observe(this, new Observer<List<Songs>>() {
             @Override
             public void onChanged(@Nullable List<Songs> songList) {
@@ -244,7 +247,7 @@ public class DetailActivity extends AppCompatActivity {
                     }
                 }
             }
-        });
+        }); */
     }
 
     public void deleteFromDatabase() {
@@ -473,4 +476,28 @@ public class DetailActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    private class searchDbAsynckTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            final DatabaseViewModel viewModel = ViewModelProviders.of(DetailActivity.this).get(DatabaseViewModel.class);
+            viewModel.getSongList().observe(DetailActivity.this, new Observer<List<Songs>>() {
+                @Override
+                public void onChanged(@Nullable List<Songs> songList) {
+                    if (songList.size() != 0) {
+                        ArrayList<Songs> ss = new ArrayList<Songs>(songList);
+                        for (Songs a : ss) {
+                            if (a.getSongID() == songId) {
+                                songDbId = a.getId();
+                                checkBookmark = true;
+                                changeFavIcon();
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+            return null;
+        }
+    }
 }
