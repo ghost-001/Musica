@@ -8,37 +8,37 @@
     android:fillViewport="true">
 
     <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-        android:background="@drawable/gradient"
-
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    tools:context=".activity.DetailActivity">
-    <TextView
-        android:id="@+id/detail_music_name"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/black"
-        android:text="Title"
-        android:textColor="@android:color/white"
-        android:textSize="18sp" />
+        android:background="@drawable/gradient"
+        tools:context=".activity.DetailActivity">
 
-    <de.hdodenhof.circleimageview.CircleImageView
-        android:id="@+id/detail_circle_image"
-        android:layout_width="225dp"
-        android:layout_height="225dp"
-        android:layout_centerInParent="true"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp"
-        android:src="@drawable/image"
-        android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/detail_music_name" />
+        <TextView
+            android:id="@+id/detail_music_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/black"
+            android:text="@string/appwidget_text"
+            android:textColor="@android:color/white"
+            android:textSize="18sp" />
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/detail_circle_image"
+            android:layout_width="225dp"
+            android:layout_height="225dp"
+            android:layout_centerInParent="true"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            android:src="@drawable/image"
+            android:visibility="visible"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/detail_music_name" />
 
         <SeekBar
             android:id="@+id/detail_seekbar"
@@ -57,10 +57,10 @@
 
         <TextView
             android:id="@+id/detail_song_max_time"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/detail_circle_image"
-        android:layout_margin="2dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/detail_circle_image"
+            android:layout_margin="2dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
@@ -73,12 +73,12 @@
 
         <TextView
             android:id="@+id/detail_song_current_time"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/detail_circle_image"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/detail_circle_image"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
-        android:layout_margin="2dp"
+            android:layout_margin="2dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
@@ -99,8 +99,9 @@
             android:layout_marginTop="8dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
-            android:background="@android:color/black"
+            android:background="@drawable/round_black_background"
             android:src="@drawable/play"
+            android:contentDescription="@string/play_or_pause_the_song"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/detail_next"
             app:layout_constraintStart_toEndOf="@+id/detail_previous"
@@ -108,51 +109,55 @@
 
         <ImageButton
             android:id="@+id/detail_next"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_below="@id/detail_seekbar"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_below="@id/detail_seekbar"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
-        android:layout_centerInParent="true"
+            android:layout_centerInParent="true"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="4dp"
-        android:background="@android:color/black"
+            android:background="@drawable/round_black_background"
             android:src="@drawable/next"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@string/skip_to_next_song"
             app:layout_constraintTop_toBottomOf="@+id/detail_circle_image" />
 
         <ImageButton
             android:id="@+id/detail_previous"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_below="@id/detail_seekbar"
-        android:layout_alignParentStart="true"
-        android:layout_centerInParent="true"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_below="@id/detail_seekbar"
+            android:layout_alignParentStart="true"
+            android:layout_centerInParent="true"
             android:layout_marginStart="8dp"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
-            android:background="@android:color/black"
+            android:background="@drawable/round_black_background"
             android:src="@drawable/previous"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
+            android:contentDescription="@string/skip_to_previous_song"
             app:layout_constraintTop_toBottomOf="@+id/detail_circle_image" />
 
         <ImageView
-        android:id="@+id/detail_fav"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_below="@id/detail_music_name"
-        android:layout_alignParentEnd="true"
-        android:layout_margin="10dp"
+            android:id="@+id/detail_fav"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_below="@id/detail_music_name"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="10dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="4dp"
             android:elevation="4dp"
-        android:padding="10dp"
+            android:background="@drawable/round_black_background"
+            android:contentDescription="@string/add_to_favourites"
             android:src="@drawable/ic_favorite_border_black_24dp"
             app:layout_constraintBottom_toTopOf="@+id/detail_circle_image"
             app:layout_constraintEnd_toEndOf="parent"
+            android:padding="10dp"
             app:layout_constraintTop_toBottomOf="@+id/detail_music_name" />
     </android.support.constraint.ConstraintLayout>
 </ScrollView>

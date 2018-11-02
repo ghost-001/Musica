@@ -77,6 +77,7 @@ public class MediaWidget extends AppWidgetProvider {
         Songs song = store.getMediaList().get(index);
 
         views.setTextViewText(R.id.widget_song_name, song.getSongTitle());
+        views.setImageViewBitmap(R.id.widget_background_image, null);
         setButton(context, views, false);
         pushUpdate(context, appWidgetId, views);
     }
@@ -113,6 +114,8 @@ public class MediaWidget extends AppWidgetProvider {
             bfo.inSampleSize = 2;
             cover = BitmapFactory.decodeByteArray(rawCover, 0, rawCover.length, bfo);
             views.setImageViewBitmap(R.id.widget_background_image,cover);
+        } else {
+            views.setImageViewBitmap(R.id.widget_background_image, null);
         }
 
 

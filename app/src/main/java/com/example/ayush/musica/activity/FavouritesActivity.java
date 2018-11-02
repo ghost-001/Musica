@@ -9,7 +9,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -17,6 +16,7 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.ayush.musica.AnalyticsTracker;
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.adapters.MusicListAdapter;
 import com.example.ayush.musica.database.SongDatabase;
@@ -32,6 +32,9 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 
 import static android.view.View.GONE;
+import static com.example.ayush.musica.utility.AppConstants.FAVOURITES_ACTION;
+import static com.example.ayush.musica.utility.AppConstants.FAVOURITES_CATEGORY;
+import static com.example.ayush.musica.utility.AppConstants.FAVOURITES_SCREEN_NAME;
 
 
 public class FavouritesActivity extends AppCompatActivity implements MusicClickListner {
@@ -46,6 +49,7 @@ public class FavouritesActivity extends AppCompatActivity implements MusicClickL
 
     private MusicListAdapter mAdapter;
     private SongDatabase songDatabase;
+    private AnalyticsTracker application;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +57,9 @@ public class FavouritesActivity extends AppCompatActivity implements MusicClickL
         setContentView(R.layout.activity_favourites);
         ButterKnife.bind(this);
         songDatabase = SongDatabase.getsInstance(getApplicationContext());
+
+        // Adding the Analytics tracker here
+        application = (AnalyticsTracker) getApplication();
 
         setSupportActionBar(mToolbar);
         getSupportActionBar().setTitle(getResources().getString(R.string.favourites));
@@ -74,7 +81,6 @@ public class FavouritesActivity extends AppCompatActivity implements MusicClickL
                     mFavText.setVisibility(View.VISIBLE);
                 } else {
                     mAdapter = new MusicListAdapter(FavouritesActivity.this, ss);
-                    Log.i("FAB", "ACTIVELY Retrieving from LIVEDATA in VIEWMODEL");
                     mRecyclerView.setAdapter(mAdapter);
                 }
             }
@@ -106,13 +112,17 @@ public class FavouritesActivity extends AppCompatActivity implements MusicClickL
             case R.id.clear_database:
                 songDatabase.favouriteDao().deleteTable();
                 Toast.makeText(FavouritesActivity.this, getResources().getString(R.string.delete_table_msg), Toast.LENGTH_SHORT).show();
+                application.trackEvent(FAVOURITES_CATEGORY, FAVOURITES_ACTION, FAVOURITES_SCREEN_NAME);
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }
+        return true;
     }
 
     @Override
     protected void onResume() {
+        application.trackScreenView(FAVOURITES_SCREEN_NAME);
         super.onResume();
     }
 

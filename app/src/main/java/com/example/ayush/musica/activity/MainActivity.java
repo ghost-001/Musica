@@ -3,6 +3,7 @@ package com.example.ayush.musica.activity;
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -13,6 +14,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -22,6 +24,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.example.ayush.musica.AnalyticsTracker;
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.adapters.MusicListAdapter;
 import com.example.ayush.musica.adapters.MusicSearchAdapter;
@@ -39,6 +42,7 @@ import butterknife.ButterKnife;
 
 import static com.example.ayush.musica.utility.AppConstants.FIRST_LAUNCH_KEY;
 import static com.example.ayush.musica.utility.AppConstants.IS_FIRST_LAUNCH;
+import static com.example.ayush.musica.utility.AppConstants.MAIN_ACTIVITY_SCREEN_NAME;
 
 public class MainActivity extends AppCompatActivity implements MusicClickListner, MusicSearchClickListner {
 
@@ -52,13 +56,17 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
     private MusicSearchAdapter mSearchAdapter;
     private SharedPreferences sharedPreferences;
     private Store store;
-
+    private AnalyticsTracker application;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
+
+        // Adding the Analytics tracker here
+        application = (AnalyticsTracker) getApplication();
+
 
         materialSearchView = findViewById(R.id.search_view);
         mToolbar = findViewById(R.id.toolbar);
@@ -100,11 +108,7 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
                         }
                     }
                     MusicSearchAdapter a = new MusicSearchAdapter(MainActivity.this, listFound);
-                    //mAdapter.setMusicAdapter(listFound);
                     mRecyclerView.setAdapter(a);
-                } else {
-                    //stateAdapter.setStateNames(searchItems);
-                    //recyclerView.setAdapter(stateAdapter);
                 }
                 return true;
             }
@@ -130,21 +134,13 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
                                            String permissions[], int[] grantResults) {
         switch (requestCode) {
             case 0: {
-                // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
-                } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                     doStuff();
+                } else {
+                    showDialog();
                 }
-
             }
-
-            // other 'case' lines to check for other
-            // permissions this app might request.
         }
     }
 
@@ -196,20 +192,12 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
                 != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                // Log.i("FUCK","ERROR PERMISSION");
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
             } else {
-                // No explanation needed; request the permission
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
                         0);
-
-
             }
         } else {
-            // Permission has already been granted
             doStuff();
         }
 
@@ -246,6 +234,21 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
         store.storeSongIndex(i);
     }
 
+    public void showDialog() {
+        AlertDialog.Builder builder;
+        builder = new AlertDialog.Builder(MainActivity.this, android.R.style.Theme_Material_Dialog_Alert);
+        builder.setTitle(getResources().getString(R.string.access_denied))
+                .setMessage(getResources().getString(R.string.access_denied_explanation))
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                        System.exit(0);
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -257,6 +260,11 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
         return true;
     }
 
+    @Override
+    protected void onResume() {
+        application.trackScreenView(MAIN_ACTIVITY_SCREEN_NAME);
+        super.onResume();
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {

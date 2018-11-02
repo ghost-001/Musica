@@ -14,4 +14,6 @@
     <string name="delete_from_favourites">Deleted from favourites</string>
     <string name="added_to_favourites">Added to favourites</string>
 
+    <string name="access_denied">Access Denied</string>
+    <string name="access_denied_explanation">Internal storage is denied to app, so app is exiting"</string>
 </resources>

@@ -32,6 +32,7 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 
+import com.example.ayush.musica.AnalyticsTracker;
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.activity.DetailActivity;
 import com.example.ayush.musica.utility.PlaybackStatus;
@@ -62,7 +63,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     private static final String CHANNEL_ID = "111";
     public final int UPDATE_PROGRESS_KEY = 1;
 
-
+    private AnalyticsTracker application;
     private final IBinder iBinder = new LocalBinder();
 
 
@@ -126,6 +127,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
     public void onCreate() {
         super.onCreate();
         registerPlayNewAudio();
+        application = (AnalyticsTracker) getApplication();
 
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
@@ -158,6 +160,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
 
         } catch (NullPointerException e) {
+            application.trackException(e);
             stopSelf();
         }
 
@@ -226,6 +229,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
         } catch (IOException e) {
             e.printStackTrace();
             stopSelf();
+            application.trackException(e);
         }
         mediaPlayer.prepareAsync();
         Thread updateProgressThread = new Thread() {
@@ -244,6 +248,7 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
+                            application.trackException(e);
                         }
                     } else Log.d(SONG_SERVICE_TAG, PROGRESS_HANDLER_NULL);
                 }
@@ -608,7 +613,6 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
 
         Intent broadcastIntent = new Intent(what);
         sendBroadcast(broadcastIntent);
-
         mMediaWidgetProvider.notifyChange(this, what);
 
     }

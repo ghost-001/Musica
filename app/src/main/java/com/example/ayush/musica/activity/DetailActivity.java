@@ -30,6 +30,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.ayush.musica.AnalyticsTracker;
 import com.example.ayush.musica.R;
 import com.example.ayush.musica.database.AppExecutors;
 import com.example.ayush.musica.database.SongDatabase;
@@ -44,10 +45,16 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
+import static com.example.ayush.musica.utility.AppConstants.ACTION_NEXT;
 import static com.example.ayush.musica.utility.AppConstants.ACTION_PAUSE;
 import static com.example.ayush.musica.utility.AppConstants.ACTION_PLAY;
+import static com.example.ayush.musica.utility.AppConstants.ACTION_PREVIOUS;
+import static com.example.ayush.musica.utility.AppConstants.ADDED_TO_FAVOURITES;
 import static com.example.ayush.musica.utility.AppConstants.BROADCAST_PLAY_NEW_SONG;
 import static com.example.ayush.musica.utility.AppConstants.CHECK_IS_PLAYING;
+import static com.example.ayush.musica.utility.AppConstants.DETAIL_ACTIVITY_CATEGORY;
+import static com.example.ayush.musica.utility.AppConstants.DETAIL_ACTIVITY_SCREEN_NAME;
+import static com.example.ayush.musica.utility.AppConstants.ERROR_IN_HANDLER;
 import static com.example.ayush.musica.utility.AppConstants.MEDIA_PLAYER_POSITION;
 import static com.example.ayush.musica.utility.AppConstants.SONG_SERVICE_TAG;
 import static com.example.ayush.musica.utility.BlurBuilder.blurImage;
@@ -60,11 +67,11 @@ public class DetailActivity extends AppCompatActivity {
     Integer songIndex;
     Long songId = -1L;
     Bitmap background = null;
-
-
-    private Handler progressUpdateHandler = null;
     @BindView(R.id.detail_relative_root)
     ScrollView mScrollView;
+
+    private Handler progressUpdateHandler = null;
+
     private boolean checkIsPlaying = false;
     private boolean songPaused = false;
     private boolean serviceBound = false;
@@ -76,8 +83,8 @@ public class DetailActivity extends AppCompatActivity {
     private Intent playIntent;
     private SongDatabase songDatabase;
     private int pos = 0;
-
-
+    private AnalyticsTracker application;
+    private Integer songDbId;
     @BindView(R.id.detail_play)
     ImageButton playButton;
     @BindView(R.id.detail_next)
@@ -96,7 +103,7 @@ public class DetailActivity extends AppCompatActivity {
     TextView mTitle;
     @BindView(R.id.detail_circle_image)
     ImageView mPosterCircle;
-    private Integer songDbId;
+
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
@@ -149,6 +156,9 @@ public class DetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_detail);
         ButterKnife.bind(this);
 
+        //Analytics
+        application = (AnalyticsTracker) getApplication();
+
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ACTION_PLAY);
         intentFilter.addAction(ACTION_PAUSE);
@@ -183,6 +193,7 @@ public class DetailActivity extends AppCompatActivity {
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                application.trackEvent(DETAIL_ACTIVITY_CATEGORY, ACTION_PLAY + ACTION_PAUSE, DETAIL_ACTIVITY_SCREEN_NAME);
                 playButtonClick();
 
             }
@@ -190,12 +201,14 @@ public class DetailActivity extends AppCompatActivity {
         previousButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                application.trackEvent(DETAIL_ACTIVITY_CATEGORY, ACTION_PREVIOUS, DETAIL_ACTIVITY_SCREEN_NAME);
                 playPreviousSong();
             }
         });
         nextButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                application.trackEvent(DETAIL_ACTIVITY_CATEGORY, ACTION_NEXT, DETAIL_ACTIVITY_SCREEN_NAME);
                 playNextSong();
             }
         });
@@ -231,23 +244,6 @@ public class DetailActivity extends AppCompatActivity {
     public void checkIfBookmark() {
         searchDbAsynckTask task = new searchDbAsynckTask();
         task.execute();
-        /*final DatabaseViewModel viewModel = ViewModelProviders.of(this).get(DatabaseViewModel.class);
-        viewModel.getSongList().observe(this, new Observer<List<Songs>>() {
-            @Override
-            public void onChanged(@Nullable List<Songs> songList) {
-                if (songList.size() != 0) {
-                    ArrayList<Songs> ss = new ArrayList<Songs>(songList);
-                    for (Songs a : ss) {
-                        if (a.getSongID() == songId) {
-                            checkBookmark = true;
-                            songDbId = a.getId();
-                            changeFavIcon();
-                            break;
-                        }
-                    }
-                }
-            }
-        }); */
     }
 
     public void deleteFromDatabase() {
@@ -258,6 +254,7 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     public void saveFavourite() {
+        application.trackEvent(DETAIL_ACTIVITY_CATEGORY, ADDED_TO_FAVOURITES, DETAIL_ACTIVITY_SCREEN_NAME);
         AppExecutors.getsInstance().diskIO().execute(new Runnable() {
             @Override
             public void run() {
@@ -381,7 +378,8 @@ public class DetailActivity extends AppCompatActivity {
 
                             } catch (Exception e) {
                                 e.printStackTrace();
-                                Log.d(SONG_SERVICE_TAG, "ERROR IN DETAIL ACTIVITY HANDLER");
+                                Log.d(SONG_SERVICE_TAG, ERROR_IN_HANDLER);
+                                application.trackException(e);
                             }
                         }
                     }
@@ -412,6 +410,8 @@ public class DetailActivity extends AppCompatActivity {
             BitmapDrawable ob = new BitmapDrawable(getResources(), background);
             final View view = this.getWindow().getDecorView();
             view.setBackground(ob);
+        } else {
+            mPosterCircle.setImageDrawable(getResources().getDrawable(R.drawable.image));
         }
 
     }
@@ -466,6 +466,11 @@ public class DetailActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
     }
 
+    @Override
+    protected void onResume() {
+        application.trackScreenView(DETAIL_ACTIVITY_SCREEN_NAME);
+        super.onResume();
+    }
     @Override
     protected void onDestroy() {
         if (serviceBound) {
