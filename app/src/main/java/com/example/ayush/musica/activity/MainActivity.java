@@ -149,6 +149,9 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
         getMusic();
         Collections.sort(arrayList);
 
+        store.saveMediaList(arrayList);
+        store.storeSongIndex(-1);
+
         mAdapter = new MusicListAdapter(this, arrayList);
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(layoutManager);
@@ -271,15 +274,19 @@ public class MainActivity extends AppCompatActivity implements MusicClickListner
         switch (item.getItemId()) {
             case R.id.search_view:
                 materialSearchView.setMenuItem(item);
+                break;
             case R.id.songs_favourite:
                 Intent i = new Intent(MainActivity.this, FavouritesActivity.class);
                 startActivity(i);
+                break;
             case R.id.song_list_Refresh:
                 onRefresh();
                 Toast.makeText(MainActivity.this, getResources().getString(R.string.refreshed_all_songs), Toast.LENGTH_SHORT).show();
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }
+        return true;
     }
 
     @Override
