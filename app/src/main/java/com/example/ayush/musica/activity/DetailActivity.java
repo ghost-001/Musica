@@ -263,7 +263,7 @@ public class DetailActivity extends AppCompatActivity {
         });
         checkBookmark = true;
         changeFavIcon();
-        Toast.makeText(this, getResources().getString(R.string.added_to_favourites), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getResources().getString(R.string.add_to_favourites), Toast.LENGTH_SHORT).show();
     }
 
 

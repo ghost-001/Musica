@@ -360,9 +360,11 @@ public class SongService extends Service implements MediaPlayer.OnCompletionList
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
                 if (mediaPlayer != null) {
-                    mediaPlayer.stop();
-                    mediaPlayer.release();
-                    mediaPlayer = null;
+                    //pauseMedia();
+                    //stopMedia();
+                   mediaPlayer.stop();
+                   mediaPlayer.release();
+                   mediaPlayer = null;
                 }
                 break;
         }
